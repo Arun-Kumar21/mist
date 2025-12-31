@@ -1,0 +1,10 @@
+librosa
+pandas
+numpy
+boto3
+pydub
+tqdm
+python-dotenv
+psycopg2-binary
+sqlalchemy
+pgvector
