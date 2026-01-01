@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 
-from audio_features import extract_audio_features
+from processing.audio_features import extract_audio_features
 
 def process_all_audio(base_path="data/fma_small"):
     all_feature = []

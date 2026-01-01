@@ -42,38 +42,38 @@ def extract_audio_features(audio_path, sr=22050, duration=30):
     features['mel_spec_std'] = np.std(mel_spec)
     
     
-    # 1. Spectral Contrast - VERY IMPORTANT for timbre differentiation
+    # Spectral Contrast - VERY IMPORTANT for timbre differentiation
     spectral_contrast = librosa.feature.spectral_contrast(y=y, sr=sr)
     features['spectral_contrast_mean'] = np.mean(spectral_contrast)
     
-    # 2. Spectral Flatness - Distinguishes tonal vs noisy sounds
+    # Spectral Flatness - Distinguishes tonal vs noisy sounds
     features['spectral_flatness'] = np.mean(librosa.feature.spectral_flatness(y=y))
     
-    # 3. Tonnetz - Harmonic content (chord progressions, tonality)
+    # Tonnetz - Harmonic content (chord progressions, tonality)
     y_harmonic = librosa.effects.harmonic(y)
     tonnetz = librosa.feature.tonnetz(y=y_harmonic, sr=sr)
     features['tonnetz_mean'] = np.mean(tonnetz)
     
-    # 4-5. Harmonic/Percussive Separation - Melody vs rhythm
+    # Harmonic/Percussive Separation - Melody vs rhythm
     y_harmonic, y_percussive = librosa.effects.hpss(y)
     features['harmonic_mean'] = np.mean(np.abs(y_harmonic))
     features['percussive_mean'] = np.mean(np.abs(y_percussive))
     
-    # 6. Chroma CENS - Better energy-normalized chroma
+    # Chroma CENS - Better energy-normalized chroma
     chroma_cens = librosa.feature.chroma_cens(y=y, sr=sr)
     features['chroma_cens_mean'] = np.mean(chroma_cens)
     
-    # 7. Zero Crossing Rate variance - Texture variability
+    # Zero Crossing Rate variance - Texture variability
     features['zcr_var'] = np.var(zcr)
     
-    # 8. RMS variance - Energy dynamics
+    # RMS variance - Energy dynamics
     features['rms_var'] = np.var(rms)
     
-    # 9. Spectral Bandwidth variance - Frequency spread changes
+    # Spectral Bandwidth variance - Frequency spread changes
     spectral_bw = librosa.feature.spectral_bandwidth(y=y, sr=sr)
     features['spectral_bandwidth_var'] = np.var(spectral_bw)
     
-    # 10. Spectral Rolloff 85% - Alternative rolloff point
+    # Spectral Rolloff 85% - Alternative rolloff point
     features['spectral_rolloff_85'] = np.mean(librosa.feature.spectral_rolloff(y=y, sr=sr, roll_percent=0.85))
     
     return features
