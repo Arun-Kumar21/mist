@@ -6,15 +6,15 @@ import shutil
 import logging
 from pathlib import Path
 
-from .s3_service import (
+from services.s3_service import (
     download_file_from_s3,
     upload_directory_to_s3,
     get_cloudfront_url
 )
-from ..processing.audio_features import extract_audio_features
-from ..processing.embedding_utils import create_embedding_vector
-from ..processing.hls_converter import convert_to_hls
-from ..db.controllers import (
+from processing.audio_features import extract_audio_features
+from processing.embedding_utils import create_embedding_vector
+from processing.hls_converter import convert_to_hls
+from db.controllers import (
     ProcessingJobRepository,
     TrackRepository,
     AudioFeaturesRepository,
@@ -113,9 +113,11 @@ def process_audio_file(job_id, s3_input_key, metadata, api_base_url):
             'processing_status': 'completed'
         })
         
-        #Insert audio features
-        features['track_id'] = track_id
-        AudioFeaturesRepository.create(features)
+        # Insert audio features (remove duration - it's already in track)
+        features_copy = features.copy()
+        features_copy.pop('duration', None)
+        features_copy['track_id'] = track_id
+        AudioFeaturesRepository.create(features_copy)
         logger.info(f"Saved audio features for track {track_id}")
         
         #  Insert embedding
