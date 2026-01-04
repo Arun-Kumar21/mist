@@ -30,6 +30,7 @@ class Track(Base):
     audio_features = relationship("AudioFeatures", back_populates="track", uselist=False, cascade="all, delete-orphan")
     embeddings = relationship("TrackEmbedding", back_populates="track", cascade="all, delete-orphan")
     processing_job = relationship("ProcessingJob", back_populates="track", uselist=False)
+    encryption_keys = relationship("TrackEncryptionKeys", back_populates="track", uselist=False, cascade="all, delete-orphan")
 
     # Timestamps
     created_at = Column(DateTime, default=datetime.now(UTC))
