@@ -79,4 +79,8 @@ def extract_audio_features(audio_path, sr=22050, duration=30):
     # Spectral Rolloff 85% - Alternative rolloff point
     features['spectral_rolloff_85'] = np.mean(librosa.feature.spectral_rolloff(y=y, sr=sr, roll_percent=0.85))
     
+    for key, value in features.items():
+        if isinstance(value, (np.integer, np.floating)):
+            features[key] = float(value)
+    
     return features

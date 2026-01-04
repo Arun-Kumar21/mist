@@ -90,3 +90,6 @@ coverage.xml
 
 # pytest
 .pytest_cache/
+
+# personal test files
+test_*
