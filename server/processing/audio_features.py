@@ -3,8 +3,11 @@ import numpy as np
 
 def extract_audio_features(audio_path, sr=22050, duration=30):
     y, sr = librosa.load(audio_path, sr=sr, duration=duration)
+    
+    track_duration = librosa.get_duration(y=y, sr=sr)
 
     features = {}
+    features['duration'] = float(track_duration)
     
     # Spectral features (3)
     features['spectral_centroid'] = np.mean(librosa.feature.spectral_centroid(y=y, sr=sr))
