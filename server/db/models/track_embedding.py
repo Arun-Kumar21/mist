@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, DateTime, ForeignKey, String, Index
 from datetime import datetime, UTC
 from sqlalchemy.orm import relationship
 from pgvector.sqlalchemy import Vector
-from ..database import Base
+from db.database import Base
 
 
 class TrackEmbedding(Base):

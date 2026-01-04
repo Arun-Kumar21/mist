@@ -4,7 +4,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime, UTC
 import uuid
 
-from ..database import Base
+from db.database import Base
 
 
 class ProcessingJob(Base):

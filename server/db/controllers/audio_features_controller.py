@@ -2,8 +2,8 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from typing import Optional, List, Dict, Any
 import logging
 
-from ..models.audio_features import AudioFeatures
-from ..database import get_db_session
+from db.models.audio_features import AudioFeatures
+from db.database import get_db_session
 
 logger = logging.getLogger(__name__)
 

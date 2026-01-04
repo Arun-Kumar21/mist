@@ -3,8 +3,8 @@ from typing import Optional, Dict, Any
 import logging
 import secrets
 
-from ..models.track_encryption_keys import TrackEncryptionKeys
-from ..database import get_db_session
+from db.models.track_encryption_keys import TrackEncryptionKeys
+from db.database import get_db_session
 
 logger = logging.getLogger(__name__)
 

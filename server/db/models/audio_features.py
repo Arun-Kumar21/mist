@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, Float, DateTime, ForeignKey
 from datetime import datetime, UTC
 from sqlalchemy.orm import relationship
-from ..database import Base
+from db.database import Base
 
 
 class AudioFeatures(Base):

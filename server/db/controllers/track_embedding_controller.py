@@ -2,9 +2,9 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from typing import Optional, List, Dict, Any, Tuple
 import logging
 
-from ..models.track_embedding import TrackEmbedding
-from ..models.tracks import Track
-from ..database import get_db_session
+from db.models.track_embedding import TrackEmbedding
+from db.models.tracks import Track
+from db.database import get_db_session
 
 logger = logging.getLogger(__name__)
 

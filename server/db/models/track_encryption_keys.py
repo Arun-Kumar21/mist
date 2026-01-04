@@ -1,7 +1,7 @@
 from sqlalchemy import Column, ForeignKey, Integer, LargeBinary, DateTime
 from datetime import datetime, UTC
 from sqlalchemy.orm import relationship
-from ..database import Base
+from db.database import Base
 
 
 class TrackEncryptionKeys(Base):

@@ -4,8 +4,8 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from typing import Optional, List, Dict, Any
 import logging
 
-from ..models.tracks import Track
-from ..database import get_db_session
+from db.models.tracks import Track
+from db.database import get_db_session
 
 logger = logging.getLogger(__name__)
 

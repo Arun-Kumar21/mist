@@ -4,8 +4,8 @@ from typing import Optional, List, Dict, Any
 import uuid
 import logging
 
-from ..models.processing_jobs import ProcessingJob
-from ..database import get_db_session
+from db.models.processing_jobs import ProcessingJob
+from db.database import get_db_session
 
 logger = logging.getLogger(__name__)
 
