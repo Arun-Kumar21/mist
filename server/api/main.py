@@ -6,6 +6,7 @@ import os
 
 from routes.upload import router as upload_router
 from routes.tracks import router as track_router
+from routes.keys import router as key_router
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -25,7 +26,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[CLIENT_URL], 
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -45,6 +46,9 @@ app.include_router(upload_router, prefix=API_PREFIX)
 
 # Track routes
 app.include_router(track_router, prefix=API_PREFIX)
+
+# Key route
+app.include_router(key_router, prefix=API_PREFIX)
 
 if __name__ == "__main__":
     import uvicorn
