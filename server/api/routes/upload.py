@@ -68,10 +68,10 @@ class UploadComplete(BaseModel):
 async def fileUploadComplete(req: UploadComplete):
     """
     Notify server that upload is complete
-    Triggers async audio processing
+    Triggers async audio processing via Celery
     """
     try:
-        # Get job to verify it exists
+        # Verify job exists
         job = ProcessingJobRepository.get_by_job_id(req.jobId)
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
@@ -79,24 +79,75 @@ async def fileUploadComplete(req: UploadComplete):
         if not job.s3_input_key:
             raise HTTPException(status_code=400, detail="S3 key not found for job")
         
-        # Update status to uploaded (ready for processing)
+        # Update status to uploaded
         ProcessingJobRepository.update_status(req.jobId, status='uploaded')
         
-        # TODO: Trigger Celery task for async processing
-        # from tasks.audio_processing import process_audio_task
-        # process_audio_task.delay(req.jobId)
+        #Queue the processing task
+        from tasks.audio_processing import process_audio_task
+        task = process_audio_task.delay(req.jobId)
         
-        logger.info(f"Job {req.jobId} marked as uploaded, ready for processing")
+        logger.info(f"Queued processing task {task.id} for job {req.jobId}")
         
         return {
             'success': True,
             'jobId': str(job.job_id),
+            'taskId': task.id,  # Celery task ID 
             'status': 'uploaded',
-            'message': 'Upload complete, processing will begin shortly'
+            'message': 'Processing started in background'
         }
     
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error in upload complete: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get('/job/{job_id}')
+async def get_job_status(job_id: str):
+    """
+    Check processing job status
+    
+    Returns:
+        - pending_upload: Waiting for file upload
+        - uploaded: File uploaded, waiting to process
+        - processing: Currently processing
+        - completed: Done! Track ready
+        - failed: Error occurred
+    """
+    try:
+        job = ProcessingJobRepository.get_by_job_id(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        response = {
+            'jobId': str(job.job_id),
+            'status': job.status,
+            'createdAt': job.created_at.isoformat(),
+            'metadata': job.metadata
+        }
+        
+        # If completed, include track info
+        if job.status == 'completed' and job.track_id:
+            from db.controllers import TrackRepository
+            track = TrackRepository.get_by_id(job.track_id)
+            if track:
+                response['track'] = {
+                    'trackId': track.track_id,
+                    'title': track.title,
+                    'artist': track.artist,
+                    'cdnUrl': track.cdn_url,
+                    'duration': track.duration
+                }
+        
+        # If failed, include error
+        if job.status == 'failed':
+            response['error'] = job.error_message
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching job status: {e}")
         raise HTTPException(status_code=500, detail=str(e))

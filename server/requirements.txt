@@ -9,3 +9,5 @@ psycopg2-binary
 sqlalchemy
 pgvector
 ffmpeg-python
+celery==5.3.4
+redis==5.0.1
