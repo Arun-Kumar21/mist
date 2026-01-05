@@ -5,6 +5,7 @@ import logging
 import os
 
 from routes.upload import router as upload_router
+from routes.tracks import router as track_router
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -41,6 +42,9 @@ app.include_router(router)
 
 # Upload routes
 app.include_router(upload_router, prefix=API_PREFIX)
+
+# Track routes
+app.include_router(track_router, prefix=API_PREFIX)
 
 if __name__ == "__main__":
     import uvicorn
