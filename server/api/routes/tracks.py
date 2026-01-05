@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/tracks", tags=["Tracks"])
 
 API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')
+API_PREFIX = 'api/v1'
 
 
 @router.get("/")
@@ -72,7 +73,7 @@ async def get_stream_info(track_id: int):
             "success": True,
             "trackId": track.track_id,
             "streamUrl": track.cdn_url,
-            "keyEndpoint": f"{API_BASE_URL}/api/keys/{track_id}",
+            "keyEndpoint": f"{API_BASE_URL}/{API_PREFIX}/keys/{track_id}",
             "duration": track.duration_sec,
             "encrypted": True
         }
