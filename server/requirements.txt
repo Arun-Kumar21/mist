@@ -13,3 +13,5 @@ celery==5.3.4
 redis==5.0.1
 fastapi
 uvicorn
+PyJWT
+bcrypt
