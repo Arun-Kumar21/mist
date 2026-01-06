@@ -2,32 +2,35 @@ from fastapi import FastAPI, APIRouter
 import sys
 from pathlib import Path
 import logging
-import os
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from config import settings
 from routes.upload import router as upload_router
 from routes.tracks import router as track_router
 from routes.keys import router as key_router
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-
+# Validate production config
+settings.validate()
+settings.print_config()
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=settings.LOG_LEVEL)
 
-app = FastAPI()
-
-API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')
-CLIENT_URL = os.getenv("CLIENT_URL", 'http://localhost:3000')
+app = FastAPI(
+    title="MIST Music Platform API",
+    version="1.0.0",
+)
 
 from fastapi.middleware.cors import CORSMiddleware
 
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[CLIENT_URL], 
-    allow_credentials=True,
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 API_PREFIX = "/api/v1"
@@ -44,14 +47,17 @@ app.include_router(router)
 # Upload routes
 app.include_router(upload_router, prefix=API_PREFIX)
 
-# Track routes
-app.include_router(track_router, prefix=API_PREFIX)
-
 # Key route
 app.include_router(key_router, prefix=API_PREFIX)
 
+# Proxy route (DEV ONLY - for local testing without CloudFront)
+if settings.ENABLE_PROXY:
+    from routes.proxy import router as proxy_router
+    app.include_router(proxy_router, prefix=API_PREFIX)
+    logger.info("Proxy endpoint enabled (development)")
+else:
+    logger.info("Proxy endpoint disabled (production)")
+
 if __name__ == "__main__":
     import uvicorn
-    PORT = os.getenv('PORT', 8000)
-    HOST = os.getenv('HOST', '0.0.0.0')
-    uvicorn.run(app, host=HOST, port=int(PORT))
+    uvicorn.run(app, host=settings.HOST, port=settings.PORT)

@@ -62,6 +62,7 @@ async def fileUploadRequest(request: UploadRequest):
 
 class UploadComplete(BaseModel): 
     jobId: str 
+    metadata: dict
 
 
 @router.post('/complete')
@@ -84,7 +85,7 @@ async def fileUploadComplete(req: UploadComplete):
         
         #Queue the processing task
         from tasks.audio_processing import process_audio_task
-        task = process_audio_task.delay(req.jobId)
+        task = process_audio_task.delay(req.jobId, req.metadata)
         
         logger.info(f"Queued processing task {task.id} for job {req.jobId}")
         
@@ -123,25 +124,24 @@ async def get_job_status(job_id: str):
         response = {
             'jobId': str(job.job_id),
             'status': job.status,
-            'createdAt': job.created_at.isoformat(),
-            'metadata': job.metadata
+            'createdAt': job.created_at.isoformat() if job.created_at else None,
+            'startedAt': job.started_at.isoformat() if job.started_at else None,
+            'completedAt': job.completed_at.isoformat() if job.completed_at else None
         }
         
         # If completed, include track info
         if job.status == 'completed' and job.track_id:
-            from db.controllers import TrackRepository
-            track = TrackRepository.get_by_id(job.track_id)
-            if track:
-                response['track'] = {
-                    'trackId': track.track_id,
-                    'title': track.title,
-                    'artist': track.artist,
-                    'cdnUrl': track.cdn_url,
-                    'duration': track.duration
-                }
+            try:
+                from db.controllers import TrackRepository
+                track = TrackRepository.get_by_id(job.track_id)
+                if track:
+                    response['track'] = track.to_dict()
+            except Exception as track_error:
+                logger.error(f"Error fetching track info: {track_error}")
+                response['track'] = {'track_id': job.track_id, 'error': 'Could not load track details'}
         
         # If failed, include error
-        if job.status == 'failed':
+        if job.status == 'failed' and job.error_message:
             response['error'] = job.error_message
         
         return response

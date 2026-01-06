@@ -94,7 +94,7 @@ async def get_similar_tracks(
         if not track:
             raise HTTPException(status_code=404, detail="Track not found")
         
-        similar_tracks = TrackEmbeddingRepository.find_similar(track_id, limit)
+        similar_tracks = TrackEmbeddingRepository.find_similar_tracks(track_id, limit)
         
         return {
             "success": True,
@@ -130,7 +130,7 @@ async def update_track(track_id: int, req: UpdateTrackRequest):
         if not track:
             raise HTTPException(status_code=404, detail="Track not found")
         
-        update_data = req.dict(exclude_unset=True)
+        update_data = req.model_dump(exclude_unset=True)
         if not update_data:
             raise HTTPException(status_code=400, detail="No fields to update")
         

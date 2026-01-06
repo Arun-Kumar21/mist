@@ -83,7 +83,16 @@ class TrackRepository:
             with get_db_session() as session:
                 track = session.query(Track).filter(Track.track_id == track_id).first()
                 if track:
-                    # Detach from session to avoid lazy loading issues
+                    _ = track.track_id
+                    _ = track.title
+                    _ = track.artist_name
+                    _ = track.album_title
+                    _ = track.genre_top
+                    _ = track.duration_sec
+                    _ = track.cdn_url
+                    _ = track.created_at
+                    _ = track.updated_at
+                    
                     session.expunge(track)
                 return track
         except SQLAlchemyError as e:

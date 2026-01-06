@@ -1,14 +1,10 @@
 from fastapi import APIRouter, HTTPException, Response
 import sys
 from pathlib import Path
-import os
-from dotenv import load_dotenv
-
-
-load_dotenv()
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from config import settings
 from db.controllers.track_encryption_keys_controller import TrackEncryptionKeysRepository
 
 import logging
@@ -21,7 +17,20 @@ router = APIRouter(
     tags=["Keys"]
 )
 
-CLIENT_URL = os.getenv("CLIENT_URL")
+
+@router.options('/{track_id}')
+async def keys_options(track_id: int):
+    """Handle CORS preflight for key requests"""
+    return Response(
+        status_code=200,
+        content=b'',
+        headers={
+            "Access-Control-Allow-Origin": settings.KEY_CORS_ORIGIN,
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Max-Age": "3600"
+        }
+    )
 
 
 @router.get('/{track_id}')
@@ -44,17 +53,19 @@ async def get_key(track_id: int):
             logger.error(f"Invalid key length for track {track_id}: {len(key_bytes) if key_bytes else 0} bytes")
             raise HTTPException(status_code=500, detail="Invalid encryption key")
         
+        logger.info(f"Serving encryption key for track {track_id} ({len(key_bytes)} bytes)")
+        
         return Response(
             content=key_bytes,
             media_type="application/octet-stream",
             headers={
                 "Content-Length": "16",
                 "Cache-Control": "public, max-age=31536000",
-                "Access-Control-Allow-Origin": CLIENT_URL,
+                "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "GET, OPTIONS",
-                "Access-Control-Allow-Headers": "*"
             }
         )
+
 
     except HTTPException:
         raise

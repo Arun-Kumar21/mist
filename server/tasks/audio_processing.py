@@ -1,5 +1,5 @@
 from celery_app import celery_app
-from services.audio_processing_service import process_audio_file
+from data.audio_processing_service import process_audio_file
 from db.controllers import ProcessingJobRepository
 import logging
 import os
