@@ -25,7 +25,7 @@ class UserRepository:
     """Repository for user operations"""
 
     @staticmethod
-    def create_user(data: UserCreate) -> Optional[UUID]:
+    def create_user(data: UserCreate):
         """
         Create user for signup request
         
@@ -167,7 +167,7 @@ class UserRepository:
                 password_hash = user.password_hash
                 
                 # Verify password
-                if not verify_password(password, password_hash):
+                if not verify_password(password, str(password_hash)):
                     logger.warning(f"Failed password verification for user: {username}")
                     return None
                 

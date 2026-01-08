@@ -86,14 +86,6 @@ def drop_tables():
     except Exception as e:
         logger.error(f"Error dropping tables: {e}")
         raise
-def drop_tables():
-    """Drop all tables (use with caution!)"""
-    try:
-        Base.metadata.drop_all(engine)
-        logger.warning("Database tables dropped")
-    except Exception as e:
-        logger.error(f"Error dropping tables: {e}")
-        raise
 
 
 if __name__ == "__main__":
