@@ -36,7 +36,7 @@ def sign_token(data: dict) -> Optional[str]:
     expire = datetime.now(UTC) + timedelta(days=7)
     to_encode.update({"exp": expire})
     
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=['HS256'])
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm='HS256')
     return encoded_jwt
 
 

@@ -4,8 +4,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from db.database import Base, engine
-from db.models import Track, AudioFeatures, TrackEmbedding, ProcessingJob, TrackEncryptionKeys
+from db.models import Track, AudioFeatures, TrackEmbedding, ProcessingJob, TrackEncryptionKeys, User 
 import logging
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,6 +32,9 @@ def create_tables():
         
         TrackEncryptionKeys.__table__.create(engine, checkfirst=True)
         logger.info("Created 'track_encryption_keys' table")
+
+        User.__table__.create(engine, checkfirst=True)
+        logger.info("Created 'user' table")
         
         logger.info("Database initialization complete!")
         
