@@ -9,6 +9,7 @@ from config import settings
 from routes.upload import router as upload_router
 from routes.tracks import router as track_router
 from routes.keys import router as key_router
+from routes.auth import router as auth_router
 
 # Validate production config
 settings.validate()
@@ -43,6 +44,9 @@ def check_server_health():
 
 
 app.include_router(router)
+
+# Auth routes
+app.include_router(auth_router, prefix=API_PREFIX)
 
 # Upload routes
 app.include_router(upload_router, prefix=API_PREFIX)

@@ -1,17 +1,16 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from uuid import UUID
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel, Field
+from typing import Optional
 
 import sys
 from pathlib import Path
 
-from util.signtoken import sign_token
-
-
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-
-from db.models.user import User
 from db.controllers.user_controller import UserRepository, UserCreate
+from db.models.user import User
+from util.auth_dependencies import get_current_user, get_current_admin, sign_token
 
 import logging
 
@@ -20,31 +19,60 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/auth', tags=['Auth'])
 
-@router.post("/register")
+
+class UserResponse(BaseModel):
+    """User response model"""
+    user_id: str
+    username: str
+    role: str
+    
+    class Config:
+        from_attributes = True
+
+
+class TokenResponse(BaseModel):
+    """Token response model"""
+    token: str
+    type: str = "bearer"
+
+
+class RegisterResponse(BaseModel):
+    """Registration response model"""
+    success: bool
+    user_id: str
+
+
+@router.post("/register", response_model=RegisterResponse)
 def register(req: UserCreate):
     """
-    Create new user
-
-    Return: user_id: str
+    Create new user account
+    
+    Args:
+        req: UserCreate with username and password
+        
+    Returns:
+        RegisterResponse with success status and user_id
+        
+    Raises:
+        HTTPException: For validation errors or if user already exists
     """
     try:
-
         if not req.username or not req.password:
-            raise HTTPException(status_code=400, detail="Validation failed")
+            raise HTTPException(status_code=400, detail="Username and password are required")
 
-        if (len(req.username) < 3):
-            raise HTTPException(status_code=400, detail="Username must be atleast 3 character long") 
+        if len(req.username) < 3:
+            raise HTTPException(status_code=400, detail="Username must be at least 3 characters long") 
         
-        if (len(req.password) < 8):
-            raise HTTPException(status_code=400, detail="Password must be atleast 8 character long")
+        if len(req.password) < 8:
+            raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
 
         exists = UserRepository.get_by_username(req.username)
         if exists:
-            raise HTTPException(status_code=400, detail="User already exists")
+            raise HTTPException(status_code=400, detail="Username already taken")
 
         user_id = UserRepository.create_user(req)
 
-        return {"success": True, "user_id": user_id} 
+        return RegisterResponse(success=True, user_id=str(user_id))
     
     except HTTPException:
         raise
@@ -54,43 +82,47 @@ def register(req: UserCreate):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-
-
-@router.post("/login")
-def login(req:UserCreate):
+@router.post("/login", response_model=TokenResponse)
+def login(req: UserCreate):
     """
-    Return Token 
+    Authenticate user and return JWT token
+    
+    Args:
+        req: UserCreate with username and password
+        
+    Returns:
+        TokenResponse with JWT token
+        
+    Raises:
+        HTTPException: For validation errors or invalid credentials
     """
-
     try:
         if not req.username or not req.password:
-            raise HTTPException(status_code=400, detail="Validation failed")
+            raise HTTPException(status_code=400, detail="Username and password are required")
 
-        if (len(req.username) < 3):
-            raise HTTPException(status_code=400, detail="Username must be atleast 3 character long") 
+        if len(req.username) < 3:
+            raise HTTPException(status_code=400, detail="Username must be at least 3 characters long") 
         
-        if (len(req.password) < 8):
-            raise HTTPException(status_code=400, detail="Password must be atleast 8 character long")
+        if len(req.password) < 8:
+            raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
 
-        exists = UserRepository.verify_credentials(req.username, req.password)        
-        if not exists:
-            raise HTTPException(status_code=400, detail="Invalid credentials") 
+        user = UserRepository.verify_credentials(req.username, req.password)        
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid username or password") 
          
+        UserRepository.update_last_login(UUID(str(user.user_id)))
         
         data = {
-            "username": exists.username,
-            "role": exists.role
+            "username": user.username,
+            "role": user.role
         }
         token = sign_token(data)
 
         if not token:
             logger.error("Failed to sign token")
-            raise 
+            raise HTTPException(status_code=500, detail="Failed to generate token")
 
-        return {
-                "token": token,
-                "type": "bearer"
-        }
+        return TokenResponse(token=token, type="bearer")
 
     except HTTPException:
         raise
@@ -98,5 +130,35 @@ def login(req:UserCreate):
     except Exception as e:
         logger.error(f"USER LOGIN ERROR: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/me", response_model=UserResponse)
+def get_current_user_info(current_user: User = Depends(get_current_user)):
+    """
+    Get current authenticated user information
+    
+    Args:
+        current_user: Authenticated user from token
+        
+    Returns:
+        UserResponse with user information
+    """
+    return UserResponse(
+        user_id=str(current_user.user_id),
+        username=current_user.username,
+        role=current_user.role
+    )
+
+
+@router.post("/logout")
+def logout():
+    """
+    Logout endpoint (client should discard token)
+    
+    Returns:
+        Success message
+    """
+    return {"success": True, "message": "Logged out successfully"}
+
 
 
