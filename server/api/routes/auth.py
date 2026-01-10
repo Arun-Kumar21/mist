@@ -1,5 +1,5 @@
 from uuid import UUID
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, Field
 from typing import Optional
 
@@ -159,6 +159,29 @@ def logout():
         Success message
     """
     return {"success": True, "message": "Logged out successfully"}
+
+
+@router.get("/profile", response_model=UserResponse)
+def get_profile(request: Request):
+    """
+    Get current user profile using middleware authentication
+    
+    The middleware automatically adds user info to request.state
+    
+    Args:
+        request: FastAPI request with user info in state
+        
+    Returns:
+        UserResponse with user information
+    """
+    # User info is available via middleware in request.state
+    user = request.state.user
+    
+    return UserResponse(
+        user_id=str(user.user_id),
+        username=user.username,
+        role=user.role
+    )
 
 
 

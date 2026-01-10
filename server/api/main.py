@@ -10,6 +10,7 @@ from routes.upload import router as upload_router
 from routes.tracks import router as track_router
 from routes.keys import router as key_router
 from routes.auth import router as auth_router
+from middleware import AuthMiddleware
 
 # Validate production config
 settings.validate()
@@ -25,6 +26,7 @@ app = FastAPI(
 
 from fastapi.middleware.cors import CORSMiddleware
 
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
@@ -32,6 +34,12 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["*"],
+)
+
+# Add Authentication middleware for route protection
+app.add_middleware(
+    AuthMiddleware,
+    enable_protection=True  
 )
 
 API_PREFIX = "/api/v1"
