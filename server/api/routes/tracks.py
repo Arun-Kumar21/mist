@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 import sys
 from pathlib import Path
@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from db.controllers import TrackRepository, TrackEmbeddingRepository
 from services.s3_service import delete_track_files
+from api.middleware import require_admin
 import logging
 import os
 
@@ -124,7 +125,8 @@ class UpdateTrackRequest(BaseModel):
 
 
 @router.put("/{track_id}")
-async def update_track(track_id: int, req: UpdateTrackRequest):
+@require_admin
+async def update_track(track_id: int, req: UpdateTrackRequest, request: Request):
     try:
         track = TrackRepository.get_by_id(track_id)
         if not track:
@@ -151,7 +153,8 @@ async def update_track(track_id: int, req: UpdateTrackRequest):
 
 
 @router.delete("/{track_id}")
-async def delete_track(track_id: int):
+@require_admin
+async def delete_track(track_id: int, request: Request):
     try:
         track = TrackRepository.get_by_id(track_id)
         if not track:

@@ -22,6 +22,7 @@ ADMIN_ROUTES: Set[str] = {
 
 ADMIN_PREFIXES: Set[str] = {
     "/api/v1/admin/",
+    "/api/v1/upload",
 }
 
 
