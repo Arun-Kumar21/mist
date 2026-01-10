@@ -14,7 +14,8 @@ from routes.tracks import router as track_router
 from routes.keys import router as key_router
 from routes.auth import router as auth_router
 from routes.listen import router as listen_router
-from middleware import AuthMiddleware
+from routes.admin import router as admin_router
+from middleware import AuthMiddleware, IPBlockMiddleware
 
 # Validate production config
 settings.validate()
@@ -34,6 +35,12 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 from fastapi.middleware.cors import CORSMiddleware
+
+# Add IP blocking middleware (first to check blocks before anything else)
+app.add_middleware(
+    IPBlockMiddleware,
+    enable_blocking=True
+)
 
 # Add CORS middleware
 app.add_middleware(
@@ -73,6 +80,9 @@ app.include_router(track_router, prefix=API_PREFIX)
 
 # Listen routes
 app.include_router(listen_router, prefix=API_PREFIX)
+
+# Admin routes
+app.include_router(admin_router, prefix=API_PREFIX)
 
 # Key route
 app.include_router(key_router, prefix=API_PREFIX)

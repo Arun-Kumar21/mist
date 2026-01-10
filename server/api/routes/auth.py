@@ -11,6 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from db.controllers.user_controller import UserRepository, UserCreate
+from db.controllers.analytics_controller import AnalyticsRepository
 from db.models.user import User
 from util.auth_dependencies import get_current_user, get_current_admin, sign_token
 
@@ -178,7 +179,6 @@ def get_profile(request: Request):
     Returns:
         UserResponse with user information
     """
-    # User info is available via middleware in request.state
     user = request.state.user
     
     return UserResponse(
@@ -186,6 +186,28 @@ def get_profile(request: Request):
         username=user.username,
         role=user.role
     )
+
+
+@router.get("/me/stats")
+def get_user_stats(request: Request):
+    """Get personal listening stats"""
+    try:
+        user = request.state.user
+        user_id = str(user.user_id)
+        
+        stats = AnalyticsRepository.get_user_stats(user_id)
+        top_genres = AnalyticsRepository.get_user_top_genres(user_id)
+        top_artists = AnalyticsRepository.get_user_top_artists(user_id)
+        
+        return {
+            "success": True,
+            "stats": stats,
+            "top_genres": top_genres,
+            "top_artists": top_artists
+        }
+    except Exception as e:
+        logger.error(f"Error fetching user stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 
