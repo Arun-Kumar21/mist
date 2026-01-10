@@ -12,7 +12,8 @@ PUBLIC_ROUTES: Set[str] = {
 
 # Define route prefixes that should be public
 PUBLIC_PREFIXES: Set[str] = {
-
+    "/api/v1/listen",
+    "/api/v1/tracks",
 }
 
 # Routes that require admin privileges
