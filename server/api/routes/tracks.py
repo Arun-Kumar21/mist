@@ -7,6 +7,7 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from db.controllers import TrackRepository, TrackEmbeddingRepository
+from db.controllers.analytics_controller import AnalyticsRepository
 from services.s3_service import delete_track_files
 from api.middleware import require_admin
 import logging
@@ -39,6 +40,21 @@ async def get_tracks(
         }
     except Exception as e:
         logger.error(f"Error fetching tracks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/popular")
+async def get_popular_tracks(limit: int = Query(default=10, ge=1, le=50)):
+    """Get most popular tracks"""
+    try:
+        popular = AnalyticsRepository.get_popular_tracks(limit)
+        return {
+            "success": True,
+            "count": len(popular),
+            "tracks": popular
+        }
+    except Exception as e:
+        logger.error(f"Error fetching popular tracks: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
