@@ -1,7 +1,10 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, Request
 import sys
 from pathlib import Path
 import logging
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -10,6 +13,7 @@ from routes.upload import router as upload_router
 from routes.tracks import router as track_router
 from routes.keys import router as key_router
 from routes.auth import router as auth_router
+from routes.listen import router as listen_router
 from middleware import AuthMiddleware
 
 # Validate production config
@@ -19,10 +23,15 @@ settings.print_config()
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=settings.LOG_LEVEL)
 
+limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
+
 app = FastAPI(
     title="MIST Music Platform API",
     version="1.0.0",
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -58,6 +67,12 @@ app.include_router(auth_router, prefix=API_PREFIX)
 
 # Upload routes
 app.include_router(upload_router, prefix=API_PREFIX)
+
+# Tracks routes
+app.include_router(track_router, prefix=API_PREFIX)
+
+# Listen routes
+app.include_router(listen_router, prefix=API_PREFIX)
 
 # Key route
 app.include_router(key_router, prefix=API_PREFIX)

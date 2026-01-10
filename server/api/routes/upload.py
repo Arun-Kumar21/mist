@@ -1,9 +1,11 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 import logging
 from typing import Optional
 import sys
 from pathlib import Path
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -13,6 +15,7 @@ from services.s3_service import generate_presigned_upload_url
 
 logger = logging.getLogger(__name__)
 
+limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(
     prefix="/upload",
     tags=["Upload"]
@@ -27,17 +30,18 @@ class UploadRequest(BaseModel):
 
 
 @router.post('/request')
-async def fileUploadRequest(request: UploadRequest):
+@limiter.limit("5/minute")
+async def fileUploadRequest(request: Request, upload_req: UploadRequest):
 
     try:
         # Create processing job
-        job_id = ProcessingJobRepository.create(metadata=request.metadata)
-        logger.info(f"Created job {job_id} for file: {request.filename}")
+        job_id = ProcessingJobRepository.create(metadata=upload_req.metadata)
+        logger.info(f"Created job {job_id} for file: {upload_req.filename}")
 
         # Generate presigned S3 upload Url
         presigned_data = generate_presigned_upload_url(
-            filename=request.filename,
-            content_type=request.contentType,
+            filename=upload_req.filename,
+            content_type=upload_req.contentType,
             job_id=job_id,
             expires_in=900 # 15 min
         )
@@ -66,7 +70,8 @@ class UploadComplete(BaseModel):
 
 
 @router.post('/complete')
-async def fileUploadComplete(req: UploadComplete):
+@limiter.limit("5/minute")
+async def fileUploadComplete(request: Request, req: UploadComplete):
     """
     Notify server that upload is complete
     Triggers async audio processing via Celery

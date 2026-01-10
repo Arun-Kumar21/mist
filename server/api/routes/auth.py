@@ -2,6 +2,8 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, Field
 from typing import Optional
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 import sys
 from pathlib import Path
@@ -16,7 +18,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
+limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix='/auth', tags=['Auth'])
 
 
@@ -43,7 +45,8 @@ class RegisterResponse(BaseModel):
 
 
 @router.post("/register", response_model=RegisterResponse)
-def register(req: UserCreate):
+@limiter.limit("10/minute")
+def register(request: Request, req: UserCreate):
     """
     Create new user account
     
@@ -83,7 +86,8 @@ def register(req: UserCreate):
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(req: UserCreate):
+@limiter.limit("10/minute")
+def login(request: Request, req: UserCreate):
     """
     Authenticate user and return JWT token
     
