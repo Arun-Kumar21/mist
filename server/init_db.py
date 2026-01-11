@@ -4,7 +4,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from db.database import Base, engine
-from db.models import Track, AudioFeatures, TrackEmbedding, ProcessingJob, TrackEncryptionKeys, User 
+from db.models import Track, AudioFeatures, TrackEmbedding, ProcessingJob, TrackEncryptionKeys, User, BlockedIP, UserListeningHistory, DailyListenQuota
 import logging
 
 
@@ -33,9 +33,19 @@ def create_tables():
         TrackEncryptionKeys.__table__.create(engine, checkfirst=True)
         logger.info("Created 'track_encryption_keys' table")
 
+        BlockedIP.__table__.create(engine, checkfirst=True)
+        logger.info("Created 'blocked_ip' table")
+
+        UserListeningHistory.__table__.create(engine, checkfirst=True)
+        logger.info("Created 'UserListeningHistory' table")
+
+        DailyListenQuota.__table__.create(engine, checkfirst=True)
+        logger.info("Created 'DailyListenQuota' table")
+        
+
         User.__table__.create(engine, checkfirst=True)
         logger.info("Created 'user' table")
-        
+
         logger.info("Database initialization complete!")
         
     except Exception as e:
