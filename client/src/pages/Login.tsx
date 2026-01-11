@@ -18,8 +18,27 @@ export default function Login() {
     setLoading(true);
 
     try {
+      // Step 1: Login to get token
       const response = await authApi.login(username, password);
-      setAuth(response.data.user, response.data.access_token);
+      const token = response.data.token;
+      
+      // Step 2: Set token first so it's available for next request
+      setAuth(null as any, token);
+      
+      // Step 3: Fetch user data from server
+      const userResponse = await authApi.getMe();
+      const userData = userResponse.data;
+      
+      // Step 4: Update with full user data
+      const user = {
+        id: parseInt(userData.user_id) || 0,
+        username: userData.username,
+        email: userData.email || '',
+        role: userData.role as 'user' | 'admin',
+        daily_listen_quota: userData.daily_listen_quota || 0,
+        created_at: userData.created_at || new Date().toISOString(),
+      };
+      setAuth(user, token);
       navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Login failed');

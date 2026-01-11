@@ -1,4 +1,4 @@
-from sqlalchemy import and_
+from sqlalchemy import and_, or_
 from datetime import datetime, timedelta, UTC
 from typing import Optional, List
 
@@ -17,10 +17,10 @@ class BlockedIPRepository:
             blocked = session.query(BlockedIP).filter(
                 and_(
                     BlockedIP.ip_address == ip_address,
-                    (
+                    or_(
                         BlockedIP.is_permanent == True,
-                        (BlockedIP.expires_at.is_(None)),
-                        (BlockedIP.expires_at > now)
+                        BlockedIP.expires_at.is_(None),
+                        BlockedIP.expires_at > now
                     )
                 )
             ).first()

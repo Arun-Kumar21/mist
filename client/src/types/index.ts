@@ -7,10 +7,18 @@ export interface User {
   created_at: string;
 }
 
+export interface UserResponse {
+  user_id: string;
+  username: string;
+  email?: string;
+  role: string;
+  daily_listen_quota?: number;
+  created_at?: string;
+}
+
 export interface AuthResponse {
-  access_token: string;
-  token_type: string;
-  user: User;
+  token: string;
+  type: string;
 }
 
 export interface Track {

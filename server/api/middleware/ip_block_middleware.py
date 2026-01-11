@@ -21,6 +21,9 @@ class IPBlockMiddleware(BaseHTTPMiddleware):
         logger.info(f"IP block middleware initialized (blocking={'enabled' if enable_blocking else 'disabled'})")
     
     async def dispatch(self, request: Request, call_next):
+        if request.method == "OPTIONS":
+            return await call_next(request)
+        
         if not self.enable_blocking:
             return await call_next(request)
         
