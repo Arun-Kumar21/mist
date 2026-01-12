@@ -86,10 +86,15 @@ async def get_stream_info(track_id: int):
         if not track.cdn_url:
             raise HTTPException(status_code=404, detail="Stream not available")
         
+        # Use proxy URL for development to avoid CORS issues
+        # In production, you would use the CDN URL directly if CORS is configured
+        proxy_url = f"{API_BASE_URL}/{API_PREFIX}/proxy/{track_id}/master.m3u8"
+        
         return {
             "success": True,
             "trackId": track.track_id,
-            "streamUrl": track.cdn_url,
+            "streamUrl": proxy_url,  # Use proxy instead of CDN
+            "cdnUrl": track.cdn_url,  # Original CDN URL for reference
             "keyEndpoint": f"{API_BASE_URL}/{API_PREFIX}/keys/{track_id}",
             "duration": track.duration_sec,
             "encrypted": True
