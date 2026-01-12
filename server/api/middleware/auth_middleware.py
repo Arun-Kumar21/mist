@@ -44,7 +44,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         Returns:
             Response from the route handler or error response
         """
-        # Allow OPTIONS requests for CORS preflight
+        # Fast-path: Skip all processing for OPTIONS requests (CORS preflight)
         if request.method == "OPTIONS":
             return await call_next(request)
         

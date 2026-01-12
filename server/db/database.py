@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import QueuePool
 from dotenv import load_dotenv
 import logging
 
@@ -17,9 +17,14 @@ DATABASE_URL = os.getenv('DATABASE_URL')
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL not found in environment variables")
 
+# Use connection pooling for better performance
 engine = create_engine(
     DATABASE_URL,
-    poolclass=NullPool,
+    poolclass=QueuePool,
+    pool_size=10,  # Number of connections to maintain
+    max_overflow=20,  # Additional connections under load
+    pool_pre_ping=True,  # Verify connections before using
+    pool_recycle=3600,  # Recycle connections after 1 hour
     echo=False,
     future=True
 )

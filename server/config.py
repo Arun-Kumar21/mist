@@ -36,15 +36,10 @@ class Settings:
     def ALLOWED_ORIGINS(self) -> List[str]:
         """Return allowed origins based on environment"""
         if self.IS_DEVELOPMENT:
-            # Development: Allow localhost and file protocol
             return [
                 "http://localhost:3000",
                 "http://localhost:5173",
                 "http://localhost:8000",
-                "http://127.0.0.1:3000",
-                "http://127.0.0.1:5173",
-                "http://127.0.0.1:8000",
-                "null"  # For local HTML files
             ]
         else:
             # Production: Only specific domains
@@ -54,7 +49,8 @@ class Settings:
     @property
     def CORS_ALLOW_CREDENTIALS(self) -> bool:
         """Allow credentials only in production with specific origins"""
-        return self.IS_PRODUCTION
+        return True 
+        #return self.IS_PRODUCTION#
     
     @property
     def ENABLE_PROXY(self) -> bool:

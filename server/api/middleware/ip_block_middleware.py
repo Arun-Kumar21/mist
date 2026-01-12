@@ -21,12 +21,14 @@ class IPBlockMiddleware(BaseHTTPMiddleware):
         logger.info(f"IP block middleware initialized (blocking={'enabled' if enable_blocking else 'disabled'})")
     
     async def dispatch(self, request: Request, call_next):
+        # Skip all processing for OPTIONS requests (CORS preflight)
         if request.method == "OPTIONS":
             return await call_next(request)
         
         if not self.enable_blocking:
             return await call_next(request)
         
+        # Only check IP blocks for non-OPTIONS requests
         ip_address = request.client.host
         
         if BlockedIPRepository.is_blocked(ip_address):

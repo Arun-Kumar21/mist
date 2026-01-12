@@ -1,30 +1,46 @@
 from sqlalchemy import and_, or_
 from datetime import datetime, timedelta, UTC
 from typing import Optional, List
+import time
 
 from db.database import SessionLocal
 from db.models.blocked_ip import BlockedIP
 
 
 class BlockedIPRepository:
+    # In-memory cache for blocked IPs (refreshed every 60 seconds)
+    _blocked_ips_cache = set()
+    _cache_expiry = 0
+    _cache_duration = 60  # seconds
     
     @staticmethod
     def is_blocked(ip_address: str) -> bool:
-        """Check if IP is currently blocked"""
+        """Check if IP is currently blocked (with caching)"""
+        current_time = time.time()
+        
+        # Refresh cache if expired
+        if current_time > BlockedIPRepository._cache_expiry:
+            BlockedIPRepository._refresh_cache()
+        
+        # Fast in-memory lookup
+        return ip_address in BlockedIPRepository._blocked_ips_cache
+    
+    @staticmethod
+    def _refresh_cache():
+        """Refresh the blocked IPs cache from database"""
         session = SessionLocal()
         try:
             now = datetime.now(UTC)
-            blocked = session.query(BlockedIP).filter(
-                and_(
-                    BlockedIP.ip_address == ip_address,
-                    or_(
-                        BlockedIP.is_permanent == True,
-                        BlockedIP.expires_at.is_(None),
-                        BlockedIP.expires_at > now
-                    )
+            blocked_ips = session.query(BlockedIP.ip_address).filter(
+                or_(
+                    BlockedIP.is_permanent == True,
+                    BlockedIP.expires_at.is_(None),
+                    BlockedIP.expires_at > now
                 )
-            ).first()
-            return blocked is not None
+            ).all()
+            
+            BlockedIPRepository._blocked_ips_cache = {ip[0] for ip in blocked_ips}
+            BlockedIPRepository._cache_expiry = time.time() + BlockedIPRepository._cache_duration
         finally:
             session.close()
     
@@ -47,25 +63,29 @@ class BlockedIPRepository:
                 if reason:
                     existing.reason = reason
                 session.commit()
-                return existing.id
+                result_id = existing.id
+            else:
+                expires_at = None
+                is_permanent = True
+                
+                if duration_hours:
+                    expires_at = datetime.now(UTC) + timedelta(hours=duration_hours)
+                    is_permanent = False
+                
+                blocked = BlockedIP(
+                    ip_address=ip_address,
+                    reason=reason,
+                    expires_at=expires_at,
+                    is_permanent=is_permanent
+                )
+                session.add(blocked)
+                session.commit()
+                session.refresh(blocked)
+                result_id = blocked.id
             
-            expires_at = None
-            is_permanent = True
-            
-            if duration_hours:
-                expires_at = datetime.now(UTC) + timedelta(hours=duration_hours)
-                is_permanent = False
-            
-            blocked = BlockedIP(
-                ip_address=ip_address,
-                reason=reason,
-                expires_at=expires_at,
-                is_permanent=is_permanent
-            )
-            session.add(blocked)
-            session.commit()
-            session.refresh(blocked)
-            return blocked.id
+            # Invalidate cache to force refresh
+            BlockedIPRepository._cache_expiry = 0
+            return result_id
         finally:
             session.close()
     
@@ -81,6 +101,8 @@ class BlockedIPRepository:
             if blocked:
                 session.delete(blocked)
                 session.commit()
+                # Invalidate cache to force refresh
+                BlockedIPRepository._cache_expiry = 0
                 return True
             return False
         finally:
