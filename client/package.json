@@ -13,6 +13,7 @@
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-query": "^5.90.16",
     "axios": "^1.13.2",
+    "hls.js": "^1.5.18",
     "lucide-react": "^0.562.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
