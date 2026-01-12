@@ -30,6 +30,9 @@ export default function Player() {
     const [duration, setDuration] = useState(0);
     const [hlsLoaded, setHlsLoaded] = useState(false);
     const [decryptionKey, setDecryptionKey] = useState<ArrayBuffer | null>(null);
+    const [bufferedRanges, setBufferedRanges] = useState<{ start: number; end: number }[]>([]);
+    const [loadedFragments, setLoadedFragments] = useState<number>(0);
+    const [totalFragments, setTotalFragments] = useState<number>(0);
 
     useEffect(() => {
         if (!id) return;
@@ -216,6 +219,8 @@ export default function Player() {
                     console.log('Level loaded');
                     if (data.details.fragments && data.details.fragments.length > 0) {
                         const firstFrag = data.details.fragments[0];
+                        setTotalFragments(data.details.fragments.length);
+                        console.log('Total fragments in playlist:', data.details.fragments.length);
                         if (firstFrag.decryptdata) {
                             console.log('Encryption detected in manifest');
                             console.log('Key URI in manifest:', firstFrag.decryptdata.uri);
@@ -232,6 +237,8 @@ export default function Player() {
 
                 hls.on(Hls.Events.FRAG_LOADED, (_event, data) => {
                     console.log('Fragment loaded:', data.frag.url);
+                    setLoadedFragments(prev => prev + 1);
+                    updateBufferedRanges();
                 });
 
                 hls.on(Hls.Events.KEY_LOADING, (_event, data) => {
@@ -280,6 +287,22 @@ export default function Player() {
         };
     }, [streamInfo, decryptionKey]);
 
+    const updateBufferedRanges = () => {
+        if (!audioRef.current) return;
+        
+        const buffered = audioRef.current.buffered;
+        const ranges: { start: number; end: number }[] = [];
+        
+        for (let i = 0; i < buffered.length; i++) {
+            ranges.push({
+                start: buffered.start(i),
+                end: buffered.end(i)
+            });
+        }
+        
+        setBufferedRanges(ranges);
+    };
+
     const togglePlay = () => {
         if (!audioRef.current) return;
 
@@ -293,6 +316,7 @@ export default function Player() {
     const handleTimeUpdate = () => {
         if (!audioRef.current) return;
         setCurrentTime(audioRef.current.currentTime);
+        updateBufferedRanges();
     };
 
     const handleLoadedMetadata = () => {
@@ -379,6 +403,9 @@ export default function Player() {
                         )}
                         {track.genre_top && (
                             <span className="inline-block mt-3 px-3 py-1 bg-gray-100 text-sm">
+                                <div className="text-xs text-gray-600">
+                                    Chunks: {loadedFragments} / {totalFragments} loaded
+                                </div>
                                 {track.genre_top}
                             </span>
                         )}
@@ -421,6 +448,73 @@ export default function Player() {
                             <button
                                 onClick={togglePlay}
                                 disabled={!hlsLoaded}
+                                className={`w-16 h-16 rounded-full flex items-center justify-center text-white ${
+                                    hlsLoaded
+                                        ? 'bg-blue-600 hover:bg-blue-700'
+                                        : 'bg-gray-400 cursor-not-allowed'
+                                }`}
+                            >
+                                {isPlaying ? (
+                                    <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                                        <rect x="6" y="4" width="4" height="16" />
+                                        <rect x="14" y="4" width="4" height="16" />
+                                    </svg>
+                                ) : (
+                                    <svg className="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M8 5v14l11-7z" />
+                                    </svg>
+                                )}
+                            </button>
+                        </div>
+
+                        {/* Buffer Visualization */}
+                        <div className="space-y-2">
+                            <div className="text-xs text-gray-600 mb-1">Buffer Status:</div>
+                            <div className="relative w-full h-6 bg-gray-200 rounded overflow-hidden">
+                                {/* Buffered chunks (green) */}
+                                {bufferedRanges.map((range, index) => (
+                                    <div
+                                        key={index}
+                                        className="absolute h-full bg-green-400 opacity-60"
+                                        style={{
+                                            left: `${(range.start / duration) * 100}%`,
+                                            width: `${((range.end - range.start) / duration) * 100}%`,
+                                        }}
+                                    />
+                                ))}
+                                {/* Current playback position (blue) */}
+                                <div
+                                    className="absolute h-full bg-blue-600"
+                                    style={{
+                                        left: 0,
+                                        width: `${(currentTime / duration) * 100}%`,
+                                    }}
+                                />
+                                {/* Playhead marker (red line) */}
+                                <div
+                                    className="absolute h-full w-1 bg-red-600"
+                                    style={{
+                                        left: `${(currentTime / duration) * 100}%`,
+                                    }}
+                                />
+                            </div>
+                            <div className="flex gap-4 text-xs text-gray-600">
+                                <div className="flex items-center gap-1">
+                                    <div className="w-3 h-3 bg-blue-600 rounded"></div>
+                                    <span>Played</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <div className="w-3 h-3 bg-green-400 opacity-60 rounded"></div>
+                                    <span>Buffered</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <div className="w-3 h-3 bg-gray-200 rounded"></div>
+                                    <span>Not loaded</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/*     disabled={!hlsLoaded}
                                 className={`w-16 h-16 rounded-full flex items-center justify-center text-white ${
                                     hlsLoaded
                                         ? 'bg-blue-600 hover:bg-blue-700'
