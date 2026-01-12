@@ -2,3 +2,4 @@ data
 tasks.md
 
 test_*
+.env
