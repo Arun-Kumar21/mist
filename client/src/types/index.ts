@@ -1,41 +1,40 @@
 export interface User {
-  id: number;
-  username: string;
-  email: string;
-  role: 'user' | 'admin';
-  daily_listen_quota: number;
-  created_at: string;
+    id: number;
+    username: string;
+    role: 'user' | 'admin';
 }
 
 export interface UserResponse {
-  user_id: string;
-  username: string;
-  email?: string;
-  role: string;
-  daily_listen_quota?: number;
-  created_at?: string;
+    user_id: string;
+    username: string;
+    role: string;
 }
 
 export interface AuthResponse {
-  token: string;
-  type: string;
+    token: string;
+    type: string;
 }
 
 export interface Track {
-  id: number;
-  title: string;
-  artist: string;
-  album?: string;
-  genre?: string;
-  duration_seconds: number;
-  play_count: number;
-  hls_url?: string;
-  created_at: string;
+    track_id: number;
+    title: string;
+    artist_name: string;
+    album_title?: string;
+    genre_top?: string;
+    duration_sec: number;
+    listens: number;
+    cdn_url?: string;
+    processing_status: string;
+    created_at: string;
+    updated_at?: string;
+    date_created?: string;
+    file_size_mb?: number;
+    interest: number;
 }
 
 export interface ListeningQuota {
-  total_quota: number;
-  used_quota: number;
-  remaining_quota: number;
-  is_authenticated: boolean;
+    total_quota: number;
+    used_quota: number;
+    remaining_quota: number;
+    is_authenticated: boolean;
 }
