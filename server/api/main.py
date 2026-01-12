@@ -9,13 +9,13 @@ from slowapi.errors import RateLimitExceeded
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config import settings
-from routes.upload import router as upload_router
-from routes.tracks import router as track_router
-from routes.keys import router as key_router
-from routes.auth import router as auth_router
-from routes.listen import router as listen_router
-from routes.admin import router as admin_router
-from middleware import AuthMiddleware, IPBlockMiddleware
+from api.routes.upload import router as upload_router
+from api.routes.tracks import router as track_router
+from api.routes.keys import router as key_router
+from api.routes.auth import router as auth_router
+from api.routes.listen import router as listen_router
+from api.routes.admin import router as admin_router
+from api.middleware import AuthMiddleware, IPBlockMiddleware
 
 # Validate production config
 settings.validate()
@@ -89,7 +89,7 @@ app.include_router(key_router, prefix=API_PREFIX)
 
 # Proxy route (DEV ONLY - for local testing without CloudFront)
 if settings.ENABLE_PROXY:
-    from routes.proxy import router as proxy_router
+    from api.routes.proxy import router as proxy_router
     app.include_router(proxy_router, prefix=API_PREFIX)
     logger.info("Proxy endpoint enabled (development)")
 else:
