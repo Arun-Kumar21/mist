@@ -14,6 +14,8 @@ PUBLIC_ROUTES: Set[str] = {
 PUBLIC_PREFIXES: Set[str] = {
     "/api/v1/listen",
     "/api/v1/tracks",
+    "/api/v1/proxy",   # HLS proxy for development
+    "/api/v1/keys",    # Decryption keys
 }
 
 # Routes that require admin privileges
