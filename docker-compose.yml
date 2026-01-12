@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  # Redis - Message broker for Celery
+  redis:
+    image: redis:7-alpine
+    container_name: mist-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - mist-network
+
+  # FastAPI Backend
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: mist-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://redis:6379/0
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - CLOUDFRONT_DOMAIN=${CLOUDFRONT_DOMAIN:-}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - API_BASE_URL=${API_BASE_URL:-http://api:8000}
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./server:/app
+      - audio-temp:/tmp/audio_processing
+    networks:
+      - mist-network
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Celery Worker
+  celery-worker:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: mist-celery-worker
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://redis:6379/0
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - CLOUDFRONT_DOMAIN=${CLOUDFRONT_DOMAIN:-}
+      - API_BASE_URL=${API_BASE_URL:-http://api:8000}
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./server:/app
+      - audio-temp:/tmp/audio_processing
+    networks:
+      - mist-network
+    command: celery -A celery_app worker --loglevel=info --concurrency=2
+
+  # Celery Flower (Optional - Celery monitoring)
+  celery-flower:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: mist-celery-flower
+    ports:
+      - "5555:5555"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+      - celery-worker
+    networks:
+      - mist-network
+    command: celery -A celery_app flower --port=5555
+
+  # React Frontend
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        VITE_SERVER_URL: ${VITE_SERVER_URL:-http://localhost:8000/api/v1}
+    container_name: mist-client
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - mist-network
+
+volumes:
+  redis-data:
+  audio-temp:
+
+networks:
+  mist-network:
+    driver: bridge
