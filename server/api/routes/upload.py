@@ -88,9 +88,12 @@ async def fileUploadComplete(request: Request, req: UploadComplete):
         # Update status to uploaded
         ProcessingJobRepository.update_status(req.jobId, status='uploaded')
         
-        #Queue the processing task
-        from tasks.audio_processing import process_audio_task
-        task = process_audio_task.delay(req.jobId, req.metadata)
+        # Queue the processing task using send_task to avoid circular import
+        from celery_app import celery_app
+        task = celery_app.send_task(
+            'tasks.process_audio',
+            args=[req.jobId, req.metadata]
+        )
         
         logger.info(f"Queued processing task {task.id} for job {req.jobId}")
         
