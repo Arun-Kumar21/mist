@@ -70,7 +70,7 @@ services:
       - mist-network
     command: celery -A celery_app worker --loglevel=info --concurrency=2
 
-  # Celery Flower (Optional - Celery monitoring)
+  # Celery Flower
   celery-flower:
     build:
       context: ./server

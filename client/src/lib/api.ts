@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { AuthResponse, UserResponse, Track, ListeningQuota } from '../types';
+import type { AuthResponse, UserResponse, Track, ListeningQuota, User } from '../types';
 
 const API_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:8000/api/v1';
 
@@ -56,7 +56,7 @@ export const tracksApi = {
 export const listenApi = {
     getQuota: () => api.get<ListeningQuota>('/listen/quota'),
 
-    startSession: (trackId: number) =>
+    startSession: (trackId: number, user?: User) =>
         api.post<{ 
             success: boolean;
             trackId: number;
@@ -64,7 +64,7 @@ export const listenApi = {
             keyEndpoint: string;
             duration: number;
             encrypted: boolean;
-        }>('/listen/start', { track_id: trackId }),
+        }>('/listen/start', { track_id: trackId, user: user}),
 };
 
 export const uploadApi = {
