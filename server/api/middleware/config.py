@@ -12,9 +12,13 @@ PUBLIC_ROUTES: Set[str] = {
 
 # Define route prefixes that should be public
 PUBLIC_PREFIXES: Set[str] = {
-    "/api/v1/tracks",
     "/api/v1/proxy",   # HLS proxy for development
     "/api/v1/keys",    # Decryption keys
+}
+
+# Define specific routes that should be public (for GET requests only on tracks)
+PUBLIC_GET_ROUTES: Set[str] = {
+    "/api/v1/tracks",  # Only GET requests for listing/viewing tracks
 }
 
 # Routes that support optional authentication (check token if present, but don't require it)
@@ -33,12 +37,13 @@ ADMIN_PREFIXES: Set[str] = {
 }
 
 
-def is_public_route(path: str) -> bool:
+def is_public_route(path: str, method: str = "GET") -> bool:
     """
     Check if a route should be publicly accessible
     
     Args:
         path: Request path
+        method: HTTP method
         
     Returns:
         True if route is public, False otherwise
@@ -51,6 +56,12 @@ def is_public_route(path: str) -> bool:
     for prefix in PUBLIC_PREFIXES:
         if path.startswith(prefix):
             return True
+    
+    # Check GET-only public routes
+    if method == "GET":
+        for route_prefix in PUBLIC_GET_ROUTES:
+            if path.startswith(route_prefix):
+                return True
     
     return False
 

@@ -52,8 +52,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         
         path = request.url.path
+        method = request.method
         
-        if is_public_route(path):
+        if is_public_route(path, method):
             return await call_next(request)
         
         # Check if this is an optional auth route
