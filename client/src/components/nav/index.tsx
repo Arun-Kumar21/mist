@@ -1,4 +1,4 @@
-import { Link, useNavigate} from "react-router"
+import { Link, useLocation, useNavigate} from "react-router"
 import { NavRoutes } from "./routes"
 import { useAuthStore } from "../../store/authStore"
 
@@ -6,7 +6,8 @@ export default function Nav() {
 
     const {user, logout} = useAuthStore();
     const navigate = useNavigate();
-    
+
+    const { pathname } = useLocation();
 
     return (
         <nav className="w-full h-12 flex items-center justify-between px-4">
@@ -17,8 +18,8 @@ export default function Nav() {
             <div className="flex gap-2">
                 <div className="flex gap-2 items-center">
                     {NavRoutes.map((route) => (
-                        <Link to={route.href} 
-                            className="px-4 py-1 text-sm hover:bg-gray-100"
+                        <Link to={route.href} key={route.href} 
+                            className={`px-4 py-1 text-sm hover:bg-gray-100 ${pathname==route.href && "bg-gray-300"}`}
                         >{route.label}</Link>
                     ))}
                 </div>

@@ -11,6 +11,7 @@ import { useAuthStore } from './store/authStore';
 import { authApi } from './lib/api';
 import Layout from './components/Layout';
 import PublicRoute from './components/PublicRoute';
+import SearchPage from './pages/Search';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -58,6 +59,7 @@ function AppContent() {
             {/* Routes with nav */}
             <Route element={<Layout />}>
                 <Route path="/" element={<Home />} />
+                <Route path="/search" element={<SearchPage />} />
                 <Route path="/player/:id" element={<Player />} />
                 <Route path="/admin/upload" element={<AdminUpload />} />
                 <Route path="/admin/tracks" element={<AdminTracks />} />

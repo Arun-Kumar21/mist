@@ -46,7 +46,7 @@ async def get_tracks(
 @router.get("/search")
 async def search_tracks(
     q: str = Query(..., min_length=1, description="Search query for track title or artist name"),
-    limit: int = Query(default=20, ge=1, le=100)
+    limit: int = Query(default=10, ge=1, le=100)
 ):
     """Search tracks by title or artist name"""
     try:

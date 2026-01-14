@@ -43,6 +43,8 @@ export const tracksApi = {
 
     getTrack: (id: number) => api.get<Track>(`/tracks/${id}`),
 
+    searchTrack: (search: string) => api.get<Track>(`/tracks/search?q=${search}`),
+
     getStreamInfo: (id: number) => api.get<{
         success: boolean;
         trackId: number;
