@@ -43,6 +43,25 @@ async def get_tracks(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/search")
+async def search_tracks(
+    q: str = Query(..., min_length=1, description="Search query for track title or artist name"),
+    limit: int = Query(default=20, ge=1, le=100)
+):
+    """Search tracks by title or artist name"""
+    try:
+        tracks = TrackRepository.search(q, limit)
+        return {
+            "success": True,
+            "query": q,
+            "count": len(tracks),
+            "tracks": [track.to_dict() for track in tracks]
+        }
+    except Exception as e:
+        logger.error(f"Error searching tracks with query '{q}': {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/popular")
 async def get_popular_tracks(limit: int = Query(default=10, ge=1, le=50)):
     """Get most popular tracks"""
