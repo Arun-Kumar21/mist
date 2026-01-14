@@ -96,8 +96,30 @@ async def get_track_by_id(track_id: int):
 
 
 @router.get("/{track_id}/stream")
-async def get_stream_info(track_id: int):
+async def get_stream_info(track_id: int, request: Request):
     try:
+        # Check quota before providing stream
+        from services.listening_service import ListeningService
+        
+        user_id = None
+        user = None
+        if hasattr(request.state, 'user'):
+            user = request.state.user
+            user_id = str(user.user_id)
+        
+        ip_address = request.client.host
+        quota_info = ListeningService.check_quota_available(user_id, ip_address, user)
+        
+        if not quota_info["has_quota"]:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "Daily listening quota exceeded",
+                    "quota_limit": quota_info["quota_limit"],
+                    "minutes_used": quota_info["minutes_used"]
+                }
+            )
+        
         track = TrackRepository.get_by_id(track_id)
         if not track:
             raise HTTPException(status_code=404, detail="Track not found")

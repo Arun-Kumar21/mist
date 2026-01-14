@@ -94,7 +94,16 @@ export default function Player() {
                 }
             } catch (err: any) {
                 console.error('Error loading track:', err);
-                setError(err.response?.data?.detail || err.message || 'Failed to load track');
+                if (err.response?.status === 429) {
+                    const detail = err.response?.data?.detail;
+                    if (typeof detail === 'object' && detail.error) {
+                        setError(`${detail.error}. You've used ${Math.floor(detail.minutes_used)} of ${Math.floor(detail.quota_limit)} minutes today.`);
+                    } else {
+                        setError('Daily listening quota exceeded');
+                    }
+                } else {
+                    setError(err.response?.data?.detail || err.message || 'Failed to load track');
+                }
             } finally {
                 setLoading(false);
             }
