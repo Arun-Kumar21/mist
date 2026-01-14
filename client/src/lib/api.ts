@@ -61,12 +61,22 @@ export const listenApi = {
     startSession: (trackId: number, user?: User) =>
         api.post<{ 
             success: boolean;
-            trackId: number;
-            streamUrl: string;
-            keyEndpoint: string;
-            duration: number;
-            encrypted: boolean;
+            session_id: number;
+            track_id: number;
+            quota: any;
         }>('/listen/start', { track_id: trackId, user: user}),
+
+    heartbeat: (sessionId: number, currentTime: number) =>
+        api.post<{
+            success: boolean;
+            quota: any;
+        }>('/listen/heartbeat', { session_id: sessionId, current_time: currentTime }),
+
+    complete: (sessionId: number, totalDuration: number) =>
+        api.post<{
+            success: boolean;
+            quota: any;
+        }>('/listen/complete', { session_id: sessionId, total_duration: totalDuration }),
 };
 
 export const uploadApi = {
