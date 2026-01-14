@@ -305,7 +305,6 @@ export default function Player() {
             return;
         }
 
-        // Send heartbeat every 15 seconds while playing
         heartbeatIntervalRef.current = setInterval(async () => {
             if (audioRef.current && sessionId !== null) {
                 try {
@@ -319,7 +318,7 @@ export default function Player() {
                     console.error('Heartbeat failed:', err);
                 }
             }
-        }, 15000); // 15 seconds
+        }, 5000); 
 
         return () => {
             if (heartbeatIntervalRef.current) {
