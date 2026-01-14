@@ -76,17 +76,32 @@ async def start_listening(req: ListenStartRequest, request: Request):
 
 @router.post("/heartbeat")
 async def listening_heartbeat(req: ListenHeartbeatRequest, request: Request):
-    """Update listening progress"""
+    """Update listening progress and quota in real-time"""
     try:
+        user_id = None
+        if hasattr(request.state, 'user'):
+            user_id = str(request.state.user.user_id)
+        
+        ip_address = request.client.host
+        
         success = ListeningService.update_listening_progress(
             req.session_id,
-            req.current_time
+            req.current_time,
+            user_id,
+            ip_address
         )
         
         if not success:
             raise HTTPException(status_code=404, detail="Session not found")
         
-        return {"success": True}
+        # Return updated quota info
+        user = request.state.user if hasattr(request.state, 'user') else None
+        quota_info = ListeningService.check_quota_available(user_id, ip_address, user)
+        
+        return {
+            "success": True,
+            "quota": quota_info
+        }
     
     except HTTPException:
         raise
