@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from util.auth_dependencies import verify_token
 from db.controllers.user_controller import UserRepository
-from .config import is_public_route, is_admin_route
+from .config import is_public_route, is_admin_route, is_optional_auth_route
 from db.models.user import UserRole
 
 logger = logging.getLogger(__name__)
@@ -56,22 +56,35 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if is_public_route(path):
             return await call_next(request)
         
+        # Check if this is an optional auth route
+        is_optional = is_optional_auth_route(path)
+        
         # Extract and validate token
         try:
             token = self._extract_token(request)
             
             if not token:
+                if is_optional:
+                    # For optional auth, allow request without token
+                    return await call_next(request)
                 return self._unauthorized_response("Authentication required")
             
             # Verify token
             token_data = verify_token(token)
             
             if token_data is None:
+                if is_optional:
+                    # For optional auth, allow request with invalid token (treat as guest)
+                    logger.debug(f"Optional auth route with invalid token, treating as guest")
+                    return await call_next(request)
                 return self._unauthorized_response("Invalid or expired token")
             
             user = UserRepository.get_by_username(token_data.username)
             
             if user is None:
+                if is_optional:
+                    # For optional auth, allow request if user not found
+                    return await call_next(request)
                 return self._unauthorized_response("User not found")
             
             # Check if route requires admin privileges
@@ -86,6 +99,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
             
         except Exception as e:
             logger.error(f"Auth middleware error: {e}")
+            if is_optional:
+                # For optional auth routes, allow request even on error
+                return await call_next(request)
             return self._unauthorized_response("Authentication failed")
         
         # Continue to route handler

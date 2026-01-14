@@ -12,10 +12,14 @@ PUBLIC_ROUTES: Set[str] = {
 
 # Define route prefixes that should be public
 PUBLIC_PREFIXES: Set[str] = {
-    "/api/v1/listen",
     "/api/v1/tracks",
     "/api/v1/proxy",   # HLS proxy for development
     "/api/v1/keys",    # Decryption keys
+}
+
+# Routes that support optional authentication (check token if present, but don't require it)
+OPTIONAL_AUTH_PREFIXES: Set[str] = {
+    "/api/v1/listen",
 }
 
 # Routes that require admin privileges
@@ -45,6 +49,24 @@ def is_public_route(path: str) -> bool:
     
     # Check prefixes
     for prefix in PUBLIC_PREFIXES:
+        if path.startswith(prefix):
+            return True
+    
+    return False
+
+
+def is_optional_auth_route(path: str) -> bool:
+    """
+    Check if a route supports optional authentication
+    
+    Args:
+        path: Request path
+        
+    Returns:
+        True if route has optional auth, False otherwise
+    """
+    # Check prefixes
+    for prefix in OPTIONAL_AUTH_PREFIXES:
         if path.startswith(prefix):
             return True
     
