@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import { uploadApi } from '../lib/api';
 
 export default function AdminUpload() {
-    const { user, logout } = useAuthStore();
+    const { user } = useAuthStore();
     const navigate = useNavigate();
 
     const [file, setFile] = useState<File | null>(null);
@@ -194,30 +194,6 @@ export default function AdminUpload() {
             <header className="bg-white border-b border-gray-300 p-4">
                 <div className="max-w-4xl mx-auto flex justify-between items-center">
                     <h1 className="text-xl font-bold">Upload Track</h1>
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => navigate('/')}
-                            className="px-4 py-1 text-sm hover:bg-gray-100"
-                        >
-                            Home
-                        </button>
-                        <button
-                            onClick={() => navigate('/admin/tracks')}
-                            className="px-4 py-1 text-sm hover:bg-gray-100"
-                        >
-                            Manage Tracks
-                        </button>
-                        <span className="text-sm">{user?.username}</span>
-                        <button
-                            onClick={() => {
-                                logout();
-                                navigate('/login');
-                            }}
-                            className="px-4 py-1 bg-gray-200 hover:bg-gray-300 text-sm"
-                        >
-                            Logout
-                        </button>
-                    </div>
                 </div>
             </header>
 

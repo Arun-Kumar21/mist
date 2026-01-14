@@ -5,7 +5,7 @@ import { tracksApi, adminApi } from '../lib/api';
 import type { Track } from '../types';
 
 export default function AdminTracks() {
-    const { user, logout } = useAuthStore();
+    const { user } = useAuthStore();
     const navigate = useNavigate();
 
     const [tracks, setTracks] = useState<Track[]>([]);
@@ -109,27 +109,12 @@ export default function AdminTracks() {
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
                     <h1 className="text-xl font-bold">Manage Tracks</h1>
                     <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => navigate('/')}
-                            className="px-4 py-1 text-sm hover:bg-gray-100"
-                        >
-                            Home
-                        </button>
+                        
                         <button
                             onClick={() => navigate('/admin/upload')}
                             className="px-4 py-1 bg-blue-600 text-white hover:bg-blue-700 text-sm"
                         >
                             Upload Track
-                        </button>
-                        <span className="text-sm">{user?.username}</span>
-                        <button
-                            onClick={() => {
-                                logout();
-                                navigate('/login');
-                            }}
-                            className="px-4 py-1 bg-gray-200 hover:bg-gray-300 text-sm"
-                        >
-                            Logout
                         </button>
                     </div>
                 </div>

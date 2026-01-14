@@ -9,6 +9,8 @@ import AdminTracks from './pages/AdminTracks';
 import Player from './pages/Player';
 import { useAuthStore } from './store/authStore';
 import { authApi } from './lib/api';
+import Layout from './components/Layout';
+import PublicRoute from './components/PublicRoute';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -49,17 +51,22 @@ function AppContent() {
 
     return (
         <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/player/:id" element={<Player />} />
-            <Route path="/admin/upload" element={<AdminUpload />} />
-            <Route path="/admin/tracks" element={<AdminTracks />} />
+            {/* Public routes without nav - redirect to home if logged in */}
+            <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+            <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+            
+            {/* Routes with nav */}
+            <Route element={<Layout />}>
+                <Route path="/" element={<Home />} />
+                <Route path="/player/:id" element={<Player />} />
+                <Route path="/admin/upload" element={<AdminUpload />} />
+                <Route path="/admin/tracks" element={<AdminTracks />} />
+            </Route>
+            
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );
 }
-
 function App() {
     return (
         <QueryClientProvider client={queryClient}>
