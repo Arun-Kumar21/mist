@@ -21,6 +21,11 @@ PUBLIC_GET_ROUTES: Set[str] = {
     "/api/v1/tracks",  # Only GET requests for listing/viewing tracks
 }
 
+# Specific routes to exclude from public access even if they match public patterns
+EXCLUDED_FROM_PUBLIC: Set[str] = {
+    "/api/v1/tracks/",  # Exclude routes like /tracks/{id}/stream, /tracks/{id}/similar
+}
+
 # Routes that support optional authentication (check token if present, but don't require it)
 OPTIONAL_AUTH_PREFIXES: Set[str] = {
     "/api/v1/listen",
@@ -59,9 +64,18 @@ def is_public_route(path: str, method: str = "GET") -> bool:
     
     # Check GET-only public routes
     if method == "GET":
-        for route_prefix in PUBLIC_GET_ROUTES:
-            if path.startswith(route_prefix):
-                return True
+        import re
+        # Allow listing tracks, getting single track, search, popular, similar
+        if path == "/api/v1/tracks" or re.match(r'^/api/v1/tracks\?', path):
+            return True
+        if re.match(r'^/api/v1/tracks/\d+$', path):
+            return True
+        if path.startswith("/api/v1/tracks/search"):
+            return True
+        if path == "/api/v1/tracks/popular":
+            return True
+        if re.match(r'^/api/v1/tracks/\d+/similar', path):
+            return True
     
     return False
 
@@ -80,6 +94,11 @@ def is_optional_auth_route(path: str) -> bool:
     for prefix in OPTIONAL_AUTH_PREFIXES:
         if path.startswith(prefix):
             return True
+    
+    # Make /tracks/{id}/stream use optional auth (checks for user, falls back to IP)
+    import re
+    if re.match(r'^/api/v1/tracks/\d+/stream$', path):
+        return True
     
     return False
 

@@ -106,9 +106,14 @@ async def get_stream_info(track_id: int, request: Request):
         if hasattr(request.state, 'user'):
             user = request.state.user
             user_id = str(user.user_id)
+            logger.info(f"Stream request from authenticated user: {user_id}, role: {user.role}")
+        else:
+            logger.info(f"Stream request from anonymous user with IP: {request.client.host}")
         
         ip_address = request.client.host
         quota_info = ListeningService.check_quota_available(user_id, ip_address, user)
+        
+        logger.info(f"Quota check - has_quota: {quota_info['has_quota']}, limit: {quota_info['quota_limit']}, used: {quota_info['minutes_used']}, remaining: {quota_info['minutes_remaining']}")
         
         if not quota_info["has_quota"]:
             raise HTTPException(
