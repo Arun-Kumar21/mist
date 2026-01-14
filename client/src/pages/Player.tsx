@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { useAuthStore } from '../store/authStore';
 import { tracksApi, listenApi } from '../lib/api';
 import type { Track } from '../types';
+import { useAuthStore } from '../store/authStore';
 
 interface StreamInfo {
     success: boolean;
@@ -15,11 +15,13 @@ interface StreamInfo {
 
 export default function Player() {
     const { id } = useParams<{ id: string }>();
-    const { user, logout } = useAuthStore();
+    const {user} = useAuthStore();
     const navigate = useNavigate();
 
     const audioRef = useRef<HTMLAudioElement>(null);
     const hlsRef = useRef<any>(null);
+    const heartbeatIntervalRef = useRef<any>(null);
+    const quotaUpdateIntervalRef = useRef<any>(null);
     
     const [track, setTrack] = useState<Track | null>(null);
     const [streamInfo, setStreamInfo] = useState<StreamInfo | null>(null);
@@ -33,6 +35,8 @@ export default function Player() {
     const [bufferedRanges, setBufferedRanges] = useState<{ start: number; end: number }[]>([]);
     const [loadedFragments, setLoadedFragments] = useState<number>(0);
     const [totalFragments, setTotalFragments] = useState<number>(0);
+    const [sessionId, setSessionId] = useState<number | null>(null);
+    const [quota, setQuota] = useState<any>(null);
 
     useEffect(() => {
         if (!id) return;
@@ -41,7 +45,7 @@ export default function Player() {
             try {
                 // Load track metadata
                 const trackResponse = await tracksApi.getTrack(parseInt(id));
-                setTrack(trackResponse.data);
+                setTrack(trackResponse.data.track);
 
                 // Get stream info from tracks endpoint
                 const streamResponse = await tracksApi.getStreamInfo(parseInt(id));
@@ -51,7 +55,13 @@ export default function Player() {
                 console.log('Stream info:', streamData);
 
                 // Start listening session for quota tracking
-                await listenApi.startSession(parseInt(id));
+                const sessionResponse = user 
+                    ? await listenApi.startSession(parseInt(id), user)
+                    : await listenApi.startSession(parseInt(id));
+                
+                console.log('Listening session started:', sessionResponse.data);
+                setSessionId(sessionResponse.data.session_id);
+                setQuota(sessionResponse.data.quota);
 
                 // If encrypted, pre-fetch the decryption key
                 if (streamData.encrypted && streamData.keyEndpoint) {
@@ -117,8 +127,6 @@ export default function Player() {
 
         const audio = audioRef.current;
 
-        // Don't use native HLS for encrypted streams - we need custom key handling
-        // Force HLS.js for proper decryption key management
         console.log('Loading HLS.js (required for encrypted streams)');
 
         // Use hls.js for all browsers when stream is encrypted
@@ -164,7 +172,6 @@ export default function Player() {
                                 if (isIntercepted) {
                                     console.log('Returning pre-fetched key instead of making request');
                                     
-                                    // Simulate successful response
                                     setTimeout(() => {
                                         // Set response properties
                                         Object.defineProperty(xhr, 'status', {
@@ -287,6 +294,85 @@ export default function Player() {
         };
     }, [streamInfo, decryptionKey]);
 
+    // Heartbeat effect - send updates while playing
+    useEffect(() => {
+        if (!isPlaying || sessionId === null) {
+            // Clear interval if not playing
+            if (heartbeatIntervalRef.current) {
+                clearInterval(heartbeatIntervalRef.current);
+                heartbeatIntervalRef.current = null;
+            }
+            return;
+        }
+
+        // Send heartbeat every 15 seconds while playing
+        heartbeatIntervalRef.current = setInterval(async () => {
+            if (audioRef.current && sessionId !== null) {
+                try {
+                    const response = await listenApi.heartbeat(
+                        sessionId,
+                        audioRef.current.currentTime
+                    );
+                    console.log('Heartbeat sent:', response.data);
+                    setQuota(response.data.quota);
+                } catch (err) {
+                    console.error('Heartbeat failed:', err);
+                }
+            }
+        }, 15000); // 15 seconds
+
+        return () => {
+            if (heartbeatIntervalRef.current) {
+                clearInterval(heartbeatIntervalRef.current);
+                heartbeatIntervalRef.current = null;
+            }
+        };
+    }, [isPlaying, sessionId]);
+
+    // Quota refresh effect - update quota display every 1 minute
+    useEffect(() => {
+        const fetchQuota = async () => {
+            try {
+                const response = await listenApi.getQuota();
+                setQuota(response.data.quota);
+                console.log('Quota refreshed:', response.data.quota);
+            } catch (err) {
+                console.error('Failed to refresh quota:', err);
+            }
+        };
+
+        // Start interval to refresh quota every 60 seconds
+        quotaUpdateIntervalRef.current = setInterval(fetchQuota, 60000);
+
+        return () => {
+            if (quotaUpdateIntervalRef.current) {
+                clearInterval(quotaUpdateIntervalRef.current);
+                quotaUpdateIntervalRef.current = null;
+            }
+        };
+    }, []);
+
+    // Cleanup effect - complete session on unmount or track end
+    useEffect(() => {
+        const handleComplete = async () => {
+            if (sessionId !== null && audioRef.current) {
+                try {
+                    await listenApi.complete(
+                        sessionId,
+                        audioRef.current.currentTime
+                    );
+                    console.log('Session completed');
+                } catch (err) {
+                    console.error('Failed to complete session:', err);
+                }
+            }
+        };
+
+        return () => {
+            handleComplete();
+        };
+    }, [sessionId]);
+
     const updateBufferedRanges = () => {
         if (!audioRef.current) return;
         
@@ -367,52 +453,38 @@ export default function Player() {
             <header className="bg-white border-b border-gray-300 p-4">
                 <div className="max-w-4xl mx-auto flex justify-between items-center">
                     <h1 className="text-xl font-bold">Music Player</h1>
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => navigate('/')}
-                            className="px-4 py-1 text-sm hover:bg-gray-100"
-                        >
-                            Home
-                        </button>
-                        {user && (
-                            <>
-                                <span className="text-sm">{user.username}</span>
-                                <button
-                                    onClick={() => {
-                                        logout();
-                                        navigate('/login');
-                                    }}
-                                    className="px-4 py-1 bg-gray-200 hover:bg-gray-300 text-sm"
-                                >
-                                    Logout
-                                </button>
-                            </>
-                        )}
-                    </div>
+                    {quota && (
+                        <div className="text-sm text-gray-600">
+                            {quota.unlimited ? (
+                                <span>Unlimited listening</span>
+                            ) : (
+                                <span>
+                                    Quota: {Math.floor(quota.minutes_remaining)}min / {Math.floor(quota.quota_limit)}min remaining
+                                </span>
+                            )}
+                        </div>
+                    )}
                 </div>
             </header>
 
-            <main className="max-w-4xl mx-auto p-6">
+            <main className="max-w-4xl p-6">
                 <div className="bg-white border border-gray-300 p-8">
                     {/* Track Info */}
-                    <div className="text-center mb-8">
-                        <h2 className="text-3xl font-bold mb-2">{track.title}</h2>
-                        <p className="text-xl text-gray-600 mb-1">{track.artist_name}</p>
+                    <div className="mb-8">
+                        <h2 className="font-bold mb-2">{track.title}</h2>
+                        <p className="text-gray-600 mb-1">{track.artist_name}</p>
                         {track.album_title && (
                             <p className="text-gray-500">{track.album_title}</p>
                         )}
                         {track.genre_top && (
                             <span className="inline-block mt-3 px-3 py-1 bg-gray-100 text-sm">
-                                <div className="text-xs text-gray-600">
-                                    Chunks: {loadedFragments} / {totalFragments} loaded
-                                </div>
                                 {track.genre_top}
                             </span>
                         )}
                     </div>
 
                     {/* HLS Status */}
-                    <div className="mb-4 text-center space-y-1">
+                    <div className="mb-4 space-y-2">
                         {hlsLoaded ? (
                             <>
                                 <div className="text-sm text-green-600">
@@ -438,6 +510,16 @@ export default function Player() {
                         onPause={() => setIsPlaying(false)}
                         onTimeUpdate={handleTimeUpdate}
                         onLoadedMetadata={handleLoadedMetadata}
+                        onEnded={async () => {
+                            if (sessionId !== null && audioRef.current) {
+                                try {
+                                    await listenApi.complete(sessionId, audioRef.current.duration);
+                                    console.log('Track completed - session ended');
+                                } catch (err) {
+                                    console.error('Failed to complete session:', err);
+                                }
+                            }
+                        }}
                         className="hidden"
                     />
 
@@ -448,9 +530,9 @@ export default function Player() {
                             <button
                                 onClick={togglePlay}
                                 disabled={!hlsLoaded}
-                                className={`w-16 h-16 rounded-full flex items-center justify-center text-white ${
+                                className={`w-12 h-12 rounded-full flex items-center justify-center text-white ${
                                     hlsLoaded
-                                        ? 'bg-blue-600 hover:bg-blue-700'
+                                        ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
                                         : 'bg-gray-400 cursor-not-allowed'
                                 }`}
                             >
@@ -514,26 +596,6 @@ export default function Player() {
                             </div>
                         </div>
 
-                        {/*     disabled={!hlsLoaded}
-                                className={`w-16 h-16 rounded-full flex items-center justify-center text-white ${
-                                    hlsLoaded
-                                        ? 'bg-blue-600 hover:bg-blue-700'
-                                        : 'bg-gray-400 cursor-not-allowed'
-                                }`}
-                            >
-                                {isPlaying ? (
-                                    <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
-                                        <rect x="6" y="4" width="4" height="16" />
-                                        <rect x="14" y="4" width="4" height="16" />
-                                    </svg>
-                                ) : (
-                                    <svg className="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M8 5v14l11-7z" />
-                                    </svg>
-                                )}
-                            </button>
-                        </div>
-
                         {/* Progress Bar */}
                         <div className="space-y-2">
                             <input
@@ -553,47 +615,6 @@ export default function Player() {
                                 <span>{formatTime(currentTime)}</span>
                                 <span>{formatTime(duration)}</span>
                             </div>
-                        </div>
-                    </div>
-
-                    {/* Track Details */}
-                    <div className="mt-8 pt-6 border-t border-gray-300">
-                        <h3 className="font-bold mb-3">Track Information</h3>
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                            <div>
-                                <span className="text-gray-600">Duration:</span>
-                                <span className="ml-2">{formatTime(track.duration_sec)}</span>
-                            </div>
-                            <div>
-                                <span className="text-gray-600">Plays:</span>
-                                <span className="ml-2">{track.listens}</span>
-                            </div>
-                            <div>
-                                <span className="text-gray-600">Status:</span>
-                                <span className="ml-2">{track.processing_status}</span>
-                            </div>
-                            {streamInfo?.encrypted && (
-                                <div>
-                                    <span className="text-gray-600">Encryption:</span>
-                                    <span className="ml-2">AES-128</span>
-                                </div>
-                            )}
-                            {streamInfo?.streamUrl && (
-                                <div className="col-span-2">
-                                    <span className="text-gray-600">Stream URL:</span>
-                                    <div className="mt-1 p-2 bg-gray-50 text-xs break-all font-mono">
-                                        {streamInfo.streamUrl}
-                                    </div>
-                                </div>
-                            )}
-                            {streamInfo?.keyEndpoint && (
-                                <div className="col-span-2">
-                                    <span className="text-gray-600">Key Endpoint:</span>
-                                    <div className="mt-1 p-2 bg-gray-50 text-xs break-all font-mono">
-                                        {streamInfo.keyEndpoint}
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>
