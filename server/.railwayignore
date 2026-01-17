@@ -1,0 +1,96 @@
+# Railway Ignore File
+# Files and directories to exclude from Railway deployment
+
+# Environment files (use Railway env vars instead)
+.env
+.env.local
+.env.*.local
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.pyc
+
+# Virtual environments
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+
+# Documentation (keep in git, but not needed at runtime)
+*.md
+!README.md
+
+# Test files
+test_*.py
+*_test.py
+tests/
+
+# Audio files (should be in S3, not in deployment)
+*.mp3
+*.wav
+*.flac
+*.m4a
+*.aac
+*.ogg
+
+# HLS files (generated at runtime)
+*.m3u8
+*.ts
+*.key
+
+# Large data files
+data/
+uploads/
+temp/
+tmp/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Jupyter
+*.ipynb
+.ipynb_checkpoints/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Docker (using nixpacks instead)
+docker-compose.yml
+docker-compose.*.yml
+
+# Local scripts
+setup_s3.py
+test_hls_playback.py
+test_s3_access.py

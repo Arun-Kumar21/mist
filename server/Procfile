@@ -1,2 +1,5 @@
-web: python init_db.py && uvicorn api.main:app --host 0.0.0.0 --port $PORT
-worker: celery -A celery_app worker --loglevel=info
+# Main API server
+web: python init_db.py && uvicorn api.main:app --host 0.0.0.0 --port $PORT --workers 1
+
+# Celery worker 
+worker: celery -A celery_app worker --loglevel=info --concurrency=2

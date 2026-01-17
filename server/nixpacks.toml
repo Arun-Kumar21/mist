@@ -1,0 +1,18 @@
+{
+  "providers": ["python"],
+  "phases": {
+    "setup": {
+      "nixPkgs": ["python311", "ffmpeg"],
+      "aptPkgs": []
+    },
+    "install": {
+      "cmds": ["pip install -r requirements.txt"]
+    },
+    "build": {
+      "cmds": []
+    }
+  },
+  "start": {
+    "cmd": "python init_db.py && uvicorn api.main:app --host 0.0.0.0 --port $PORT --workers 1"
+  }
+}

@@ -72,6 +72,7 @@ class Settings:
     
     # Security
     SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY") or SECRET_KEY
     
     def validate(self):
         """Validate critical production settings"""
@@ -90,6 +91,9 @@ class Settings:
             
             if self.SECRET_KEY == "dev-secret-key-change-in-production":
                 errors.append("SECRET_KEY must be changed in production")
+            
+            if self.JWT_SECRET_KEY == "dev-secret-key-change-in-production":
+                errors.append("JWT_SECRET_KEY must be changed in production")
             
             if errors:
                 raise ValueError(
