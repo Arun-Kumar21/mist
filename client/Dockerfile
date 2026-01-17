@@ -5,14 +5,14 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci
+RUN npm i
 
 COPY . .
 
 ARG VITE_SERVER_URL=http://localhost:8000/api/v1
 ENV VITE_SERVER_URL=$VITE_SERVER_URL
 
-RUN npm run build
+RUN npm run build 
 
 FROM nginx:alpine
 

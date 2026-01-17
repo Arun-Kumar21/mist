@@ -7,6 +7,7 @@ import Register from './pages/Register';
 import AdminUpload from './pages/AdminUpload';
 import AdminTracks from './pages/AdminTracks';
 import Player from './pages/Player';
+import Library from './pages/Library';
 import { useAuthStore } from './store/authStore';
 import { authApi } from './lib/api';
 import Layout from './components/Layout';
@@ -60,6 +61,7 @@ function AppContent() {
             <Route element={<Layout />}>
                 <Route path="/" element={<Home />} />
                 <Route path="/search" element={<SearchPage />} />
+                <Route path="/library" element={<Library />} />
                 <Route path="/player/:id" element={<Player />} />
                 <Route path="/admin/upload" element={<AdminUpload />} />
                 <Route path="/admin/tracks" element={<AdminTracks />} />

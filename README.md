@@ -1,69 +1,47 @@
 # MIST: Music Streaming Platform
 
-MIST (Music Streaming) is a scalable, full-stack web application implementing modern music streaming capabilities with security and personalization features.
+A full-stack web application implementing secure, scalable music streaming with HTTP Live Streaming (HLS) protocol and asynchronous audio processing.
 
 ## Architecture
 
-The system employs a microservices architecture consisting of:
+![Architecture](./arch.png)
 
-- **Client**: React-based single-page application with TypeScript, utilizing Vite for build optimization
-- **Server**: Python FastAPI backend with asynchronous request handling
-- **Task Queue**: Celery for distributed audio processing workflows
-- **Storage**: S3-compatible object storage for audio assets
-- **Database**: PostgreSQL for relational data persistence
+The system implements a distributed architecture with the following components:
 
-## Technical Implementation
+- **Frontend**: React 19 SPA with TypeScript, HLS.js for adaptive streaming, Zustand for state management
+- **Backend**: FastAPI with async request handling, SQLAlchemy ORM for PostgreSQL integration
+- **Task Queue**: Celery workers with Redis broker for asynchronous audio processing
+- **Storage**: AWS S3 for static asset delivery with direct public access and CORS configuration
+- **Database**: PostgreSQL with pgvector extension for audio feature embeddings
 
-### Adaptive Streaming
-Audio files are transcoded to HLS format using FFmpeg, generating multiple quality variants (128kbps, 256kbps, 320kbps) with .m3u8 playlists and .ts segments. The client-side HLS.js library handles adaptive bitrate selection based on bandwidth estimation.
+## Core Features
 
-### Content Protection
-Audio tracks undergo AES-128 encryption during HLS conversion. Encryption keys are stored in PostgreSQL with track-specific associations. The server implements JWT-based authentication for key retrieval endpoints, with Redis-backed rate limiting (100 requests per minute per IP) to prevent key extraction attacks.
+### 1. Adaptive Bitrate Streaming
+Audio files are transcoded to HLS format using FFmpeg, generating multiple quality variants (64kbps, 128kbps, 192kbps) with MPEG-TS segments and M3U8 playlists. The client implements HLS.js with custom loaders for seamless playback and bandwidth adaptation.
 
-### Audio Processing Pipeline
-Celery workers handle asynchronous processing tasks:
-1. Audio normalization and format conversion via FFmpeg
-2. HLS segmentation with encryption
-3. Audio feature extraction using Librosa (MFCCs, spectral features, tempo)
-4. Metadata extraction and database persistence
-5. S3 upload of processed segments
+### 2. Content Security
+- **Encryption**: AES-128 encryption applied during HLS conversion with track-specific 16-byte keys
+- **Authentication**: JWT-based access control with role-based authorization (user/admin)
+- **Key Management**: Encryption keys stored in PostgreSQL, served through authenticated endpoints
+- **Rate Limiting**: IP-based throttling on key retrieval endpoints
 
-### Security Measures
-- JWT access tokens with 15-minute expiration
-- Refresh token rotation with Redis blacklist
-- IP-based rate limiting middleware
-- Admin-only upload endpoints with role verification
-- SQL injection prevention via SQLAlchemy ORM
+### 3. Audio Processing Pipeline
+Celery workers execute the following tasks asynchronously:
+1. Format normalization and validation
+2. Multi-bitrate HLS transcoding with AES-128 encryption
+3. Audio feature extraction: MFCCs, spectral centroids, chroma features, zero-crossing rate
+4. Metadata parsing and database insertion
+5. S3 upload with public-read ACL and proper MIME types
 
-### Analytics
-PostgreSQL stores listening history with timestamp precision. Track play counts and user interaction patterns are recorded for future recommendation system implementation.
+### 4. Analytics & Tracking
+- Listening session management with heartbeat monitoring
+- Per-track play count aggregation
+- User listening history with temporal granularity
+- Foundation for content-based recommendation system
 
-## Technology Stack
+## TODO
 
-**Frontend**: React, TypeScript, Zustand, Vite  
-**Backend**: FastAPI, SQLAlchemy, Celery, Redis  
-**Processing**: Librosa, FFmpeg, NumPy  
-**Infrastructure**: Docker, Docker Compose
-
-## Implementation Status
-
-### Completed Features
-- User authentication and authorization (JWT-based)
-- Admin upload interface with drag-and-drop
-- HLS adaptive streaming with multiple bitrates
-- AES-128 encryption for audio content
-- Asynchronous audio processing pipeline
-- Audio feature extraction (MFCCs, spectral analysis)
-- Listening history tracking
-- Rate limiting middleware
-- S3 integration for media storage
-- Docker containerization
-
-### Planned Features
-- Content-based recommendation system using track embeddings
-- Redis caching layer for top tracks and recommendations
-- User playlist management
-- Social features (following, sharing)
-- Advanced analytics dashboard
-- Collaborative filtering recommendations
-- Mobile application
+- [ ] Implement Redis caching for track metadata and popular songs
+- [ ] Build content-based recommendation system using audio embeddings
+- [ ] Implement collaborative filtering for user recommendations
+- [ ] Add playlist management system
