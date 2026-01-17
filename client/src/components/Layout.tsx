@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router';
-import Nav from './nav/Index';
+import Nav from './nav/index';
 
 export default function Layout() {
     return (
