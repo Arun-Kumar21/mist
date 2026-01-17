@@ -31,7 +31,6 @@ export default function Player() {
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [hlsLoaded, setHlsLoaded] = useState(false);
-    const [decryptionKey, setDecryptionKey] = useState<ArrayBuffer | null>(null);
     const [bufferedRanges, setBufferedRanges] = useState<{ start: number; end: number }[]>([]);
     const [loadedFragments, setLoadedFragments] = useState<number>(0);
     const [totalFragments, setTotalFragments] = useState<number>(0);
@@ -63,34 +62,10 @@ export default function Player() {
                 setSessionId(sessionResponse.data.session_id);
                 setQuota(sessionResponse.data.quota);
 
-                // If encrypted, pre-fetch the decryption key
-                if (streamData.encrypted && streamData.keyEndpoint) {
-                    console.log('Fetching decryption key from:', streamData.keyEndpoint);
-                    
-                    const authStorage = localStorage.getItem('auth-storage');
-                    let token = '';
-                    if (authStorage) {
-                        try {
-                            const { state } = JSON.parse(authStorage);
-                            token = state?.token || '';
-                        } catch (e) {
-                            console.error('Failed to parse auth storage', e);
-                        }
-                    }
-
-                    const keyResponse = await fetch(streamData.keyEndpoint, {
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
-                    });
-
-                    if (!keyResponse.ok) {
-                        throw new Error(`Failed to fetch decryption key: ${keyResponse.status}`);
-                    }
-
-                    const keyData = await keyResponse.arrayBuffer();
-                    console.log('Decryption key fetched, size:', keyData.byteLength, 'bytes');
-                    setDecryptionKey(keyData);
+                // Note: HLS.js will automatically fetch the decryption key from the public endpoint
+                // No need to pre-fetch it anymore
+                if (streamData.encrypted) {
+                    console.log('Stream is encrypted - HLS.js will fetch key from:', streamData.keyEndpoint);
                 }
             } catch (err: any) {
                 console.error('Error loading track:', err);
@@ -116,7 +91,14 @@ export default function Player() {
         console.log('HLS Setup useEffect triggered');
         console.log('StreamInfo:', streamInfo);
         console.log('AudioRef:', audioRef.current);
-        console.log('Decryption Key:', decryptionKey ? `${decryptionKey.byteLength} bytes` : 'null');
+        console.log('Loading state:', loading);
+        console.log('Error state:', error);
+
+        // Don't try to setup HLS while still loading or if there's an error
+        if (loading || error) {
+            console.log('Still loading or error present, waiting...');
+            return;
+        }
 
         if (!streamInfo?.streamUrl) {
             console.log('Missing streamInfo, exiting');
@@ -124,14 +106,16 @@ export default function Player() {
         }
 
         if (!audioRef.current) {
-            console.log('AudioRef not ready yet, exiting');
-            return;
-        }
-
-        // If encrypted, wait for key to be fetched
-        if (streamInfo.encrypted && !decryptionKey) {
-            console.log('Waiting for decryption key...');
-            return;
+            console.log('AudioRef not ready yet, will retry...');
+            // Give the DOM a chance to render
+            const timer = setTimeout(() => {
+                if (audioRef.current) {
+                    console.log('Audio element now available, triggering re-render');
+                    // Force a state update to trigger this effect again
+                    setHlsLoaded(false);
+                }
+            }, 100);
+            return () => clearTimeout(timer);
         }
 
         const audio = audioRef.current;
@@ -153,76 +137,67 @@ export default function Player() {
 
                 console.log('HLS is supported, creating instance...');
 
+                // Custom loader to fix localhost key URIs
+                class CustomKeyLoader extends Hls.DefaultConfig.loader {
+                    constructor(config: any) {
+                        super(config);
+                    }
+
+                    load(context: any, config: any, callbacks: any) {
+                        const url = context.url;
+                        
+                        // Intercept localhost key requests and redirect to correct endpoint
+                        if ((url.includes('localhost:8000') || url.includes('127.0.0.1:8000')) && 
+                            url.includes('/keys/') && streamInfo?.keyEndpoint) {
+                            console.log('🔄 Redirecting localhost key URI to:', streamInfo.keyEndpoint);
+                            context.url = streamInfo.keyEndpoint;
+                        }
+                        
+                        // Call parent loader with potentially modified URL
+                        super.load(context, config, callbacks);
+                    }
+                }
+
                 const hls = new Hls({
                     debug: true,
                     enableWorker: true,
                     lowLatencyMode: false,
+                    loader: CustomKeyLoader,
+                    // Configure XHR for proper CORS handling with S3
                     xhrSetup: (xhr: XMLHttpRequest, url: string) => {
-                        console.log('XHR Setup - URL:', url);
-                        
-                        // If this is a key request, we need to intercept and return our pre-fetched key
-                        if (url.includes('.key') && decryptionKey) {
-                            console.log('Key request detected! Intercepting...');
-                            
-                            // Prevent the actual request
-                            const originalSend = xhr.send.bind(xhr);
-                            const originalOpen = xhr.open.bind(xhr);
-                            
-                            let isIntercepted = false;
-                            
-                            xhr.open = function(method: string, _url: string | URL, async?: boolean) {
-                                console.log('Intercepted open() - not making real request');
-                                isIntercepted = true;
-                                // Open to a dummy URL to prevent actual request
-                                return originalOpen(method, 'data:text/plain,dummy', async !== false);
-                            };
-                            
-                            xhr.send = function(body?: Document | XMLHttpRequestBodyInit | null) {
-                                if (isIntercepted) {
-                                    console.log('Returning pre-fetched key instead of making request');
-                                    
-                                    setTimeout(() => {
-                                        // Set response properties
-                                        Object.defineProperty(xhr, 'status', {
-                                            get: () => 200,
-                                            configurable: true
-                                        });
-                                        Object.defineProperty(xhr, 'readyState', {
-                                            get: () => 4,
-                                            configurable: true
-                                        });
-                                        Object.defineProperty(xhr, 'response', {
-                                            get: () => decryptionKey,
-                                            configurable: true
-                                        });
-                                        Object.defineProperty(xhr, 'responseType', {
-                                            get: () => 'arraybuffer',
-                                            set: () => {},
-                                            configurable: true
-                                        });
-                                        
-                                        console.log('Dispatching load event with decryption key');
-                                        
-                                        // Dispatch events
-                                        if (xhr.onreadystatechange) {
-                                            xhr.onreadystatechange.call(xhr, new Event('readystatechange'));
-                                        }
-                                        if (xhr.onload) {
-                                            xhr.onload.call(xhr, new ProgressEvent('load'));
-                                        }
-                                        xhr.dispatchEvent(new ProgressEvent('load'));
-                                    }, 0);
-                                } else {
-                                    return originalSend.call(xhr, body);
-                                }
-                            };
-                        }
+                        console.log('XHR Setup for URL:', url);
+                        // Set CORS mode for cross-origin requests
+                        xhr.withCredentials = false;
+                        // Log request headers
+                        xhr.addEventListener('loadstart', () => {
+                            console.log('XHR loadstart for:', url);
+                        });
+                        xhr.addEventListener('error', () => {
+                            console.error('XHR error for:', url);
+                        });
+                        xhr.addEventListener('load', () => {
+                            console.log('XHR load success for:', url, 'Status:', xhr.status);
+                        });
                     }
                 });
 
                 hlsRef.current = hls;
 
                 console.log('Loading HLS source:', streamInfo.streamUrl);
+                
+                // Add manifest loading event
+                hls.on(Hls.Events.MANIFEST_LOADING, (_event, data) => {
+                    console.log('MANIFEST_LOADING - Fetching:', data.url);
+                });
+                
+                hls.on(Hls.Events.MANIFEST_LOADED, (_event, data) => {
+                    console.log('MANIFEST_LOADED - Master playlist loaded successfully');
+                    console.log('Levels available:', data.levels.length);
+                    data.levels.forEach((level, index) => {
+                        console.log(`Level ${index}: ${level.bitrate}bps - ${level.url}`);
+                    });
+                });
+                
                 hls.loadSource(streamInfo.streamUrl);
                 hls.attachMedia(audio);
 
@@ -268,23 +243,51 @@ export default function Player() {
 
                 hls.on(Hls.Events.ERROR, (_event, data) => {
                     console.error('HLS error:', data);
+                    console.error('Error type:', data.type);
+                    console.error('Error details:', data.details);
+                    console.error('Error fatal:', data.fatal);
+                    
+                    if (data.response) {
+                        console.error('HTTP Response code:', data.response.code);
+                        console.error('HTTP Response URL:', data.response.url);
+                    }
+                    
+                    if (data.frag) {
+                        console.error('Failed fragment URL:', data.frag.url);
+                    }
                     
                     if (data.fatal) {
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:
-                                console.error('Network error, attempting recovery...');
+                                console.error('Fatal network error occurred');
+                                if (data.details === 'manifestLoadError') {
+                                    setError('Failed to load playlist. Check S3 CORS and file accessibility.');
+                                } else if (data.details === 'fragLoadError') {
+                                    setError('Failed to load audio segment. Check S3 file permissions.');
+                                } else if (data.details === 'keyLoadError') {
+                                    setError('Failed to load decryption key. Check key endpoint.');
+                                } else {
+                                    setError(`Network error: ${data.details}`);
+                                }
+                                // Attempt recovery
+                                console.log('Attempting to recover from network error...');
                                 hls.startLoad();
                                 break;
                             case Hls.ErrorTypes.MEDIA_ERROR:
-                                console.error('Media error, attempting recovery...');
+                                console.error('Fatal media error occurred');
+                                setError(`Media error: ${data.details}`);
+                                console.log('Attempting to recover from media error...');
                                 hls.recoverMediaError();
                                 break;
                             default:
-                                console.error('Fatal error:', data);
+                                console.error('Fatal unrecoverable error:', data);
                                 setError(`Playback error: ${data.details}`);
                                 hls.destroy();
                                 break;
                         }
+                    } else {
+                        // Non-fatal error - log but continue
+                        console.warn('Non-fatal HLS error:', data.details);
                     }
                 });
             } catch (err) {
@@ -301,7 +304,7 @@ export default function Player() {
                 hlsRef.current = null;
             }
         };
-    }, [streamInfo, decryptionKey]);
+    }, [streamInfo, loading, error]);
 
     // Heartbeat effect - send updates while playing
     useEffect(() => {

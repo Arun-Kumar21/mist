@@ -1,12 +1,10 @@
 import os
 import shutil
 import logging
-from pathlib import Path
 
 from services.s3_service import (
     download_file_from_s3,
-    upload_directory_to_s3,
-    get_cloudfront_url
+    upload_directory_to_s3
 )
 from processing.audio_features import extract_audio_features
 from processing.embedding_utils import create_embedding_vector
@@ -80,7 +78,7 @@ def process_audio_file(job_id, s3_input_key, metadata, api_base_url):
         
         # Convert to encrypted HLS
         hls_output_dir = os.path.join(temp_dir, 'hls')
-        key_uri = f"{api_base_url}/api/keys/{track_id}"
+        key_uri = f"{api_base_url}/api/v1/keys/{track_id}"
         
         hls_result = convert_to_hls(
             input_path=local_audio_path,
@@ -97,8 +95,10 @@ def process_audio_file(job_id, s3_input_key, metadata, api_base_url):
         upload_directory_to_s3(track_hls_dir, hls_s3_prefix)
         logger.info(f"Uploaded HLS to S3: {hls_s3_prefix}")
         
-        # Get CDN URL
-        cdn_url = get_cloudfront_url(f"{hls_s3_prefix}/master.m3u8")
+        # Get direct S3 URL
+        s3_bucket = os.getenv('S3_BUCKET_NAME')
+        aws_region = os.getenv('AWS_REGION', 'us-east-1')
+        cdn_url = f"https://{s3_bucket}.s3.{aws_region}.amazonaws.com/{hls_s3_prefix}/master.m3u8"
         
         # Get audio duration
         duration_sec = features.get('duration', 0)

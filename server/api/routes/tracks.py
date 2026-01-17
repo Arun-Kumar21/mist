@@ -100,6 +100,7 @@ async def get_stream_info(track_id: int, request: Request):
     try:
         # Check quota before providing stream
         from services.listening_service import ListeningService
+        from services.s3_service import generate_hls_stream_url
         
         user_id = None
         user = None
@@ -132,15 +133,13 @@ async def get_stream_info(track_id: int, request: Request):
         if not track.cdn_url:
             raise HTTPException(status_code=404, detail="Stream not available")
         
-        # Use proxy URL for development to avoid CORS issues
-        # In production, you would use the CDN URL directly if CORS is configured
-        proxy_url = f"{API_BASE_URL}/{API_PREFIX}/proxy/{track_id}/master.m3u8"
+        # Generate direct S3 URL with CORS-compatible signed URLs
+        stream_url = generate_hls_stream_url(track_id)
         
         return {
             "success": True,
             "trackId": track.track_id,
-            "streamUrl": proxy_url,  # Use proxy instead of CDN
-            "cdnUrl": track.cdn_url,  # Original CDN URL for reference
+            "streamUrl": stream_url,  # Direct S3 URL for fast streaming
             "keyEndpoint": f"{API_BASE_URL}/{API_PREFIX}/keys/{track_id}",
             "duration": track.duration_sec,
             "encrypted": True

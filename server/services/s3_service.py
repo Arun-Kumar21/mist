@@ -14,7 +14,6 @@ AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 AWS_REGION = os.getenv('AWS_REGION', 'us-east-1')
 S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
-CLOUDFRONT_DOMAIN = os.getenv('CLOUDFRONT_DOMAIN', '')
 
 if not S3_BUCKET_NAME:
     raise ValueError("S3_BUCKET_NAME not set in environment variables")
@@ -74,9 +73,78 @@ def generate_presigned_upload_url(filename, content_type, job_id, expires_in=900
         raise
 
 
+def generate_hls_stream_url(track_id: int):
+    """
+    Generate direct S3 URL for HLS streaming (public access).
+    Returns direct S3 URL with proper CORS.
+    
+    Args:
+        track_id: Track identifier
+    
+    Returns:
+        str: Direct S3 URL to master.m3u8
+    """
+    s3_key = f"audio/hls/{track_id}/master.m3u8"
+    return f"https://{S3_BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{s3_key}"
+
+
+def configure_bucket_cors():
+    """
+    Configure S3 bucket CORS for direct streaming.
+    Run this once during setup to enable browser access to HLS files.
+    Includes local development URLs for encrypted HLS streaming.
+    """
+    try:
+        s3_client = _get_s3_client()
+        
+        # Include common local development URLs
+        allowed_origins = [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://localhost:8000",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:8000"
+        ]
+        
+        # Add production client URLs if configured
+        client_urls = os.getenv("CLIENT_URLS", "")
+        if client_urls:
+            production_urls = [url.strip() for url in client_urls.split(",") if url.strip()]
+            allowed_origins.extend(production_urls)
+        
+        # If no specific origins, allow all (development only)
+        if not client_urls:
+            allowed_origins = ["*"]
+        
+        cors_configuration = {
+            'CORSRules': [{
+                'AllowedHeaders': ['*'],
+                'AllowedMethods': ['GET', 'HEAD', 'OPTIONS'],
+                'AllowedOrigins': allowed_origins,
+                'ExposeHeaders': ['ETag', 'Content-Length', 'Content-Type', 'Content-Range'],
+                'MaxAgeSeconds': 3600
+            }]
+        }
+        
+        s3_client.put_bucket_cors(
+            Bucket=S3_BUCKET_NAME,
+            CORSConfiguration=cors_configuration
+        )
+        
+        logger.info(f"CORS configured for bucket {S3_BUCKET_NAME}")
+        logger.info(f"Allowed origins: {', '.join(allowed_origins)}")
+        return True
+        
+    except ClientError as e:
+        logger.error(f"Error configuring CORS: {e}")
+        raise
+
+
 def upload_directory_to_s3(local_dir, s3_prefix):
     """
     Upload entire directory to S3, preserving structure.
+    Makes HLS files publicly readable for direct streaming.
     
     Args:
         local_dir: Local directory path
@@ -98,12 +166,17 @@ def upload_directory_to_s3(local_dir, s3_prefix):
                 
                 content_type = _get_content_type(file_path.suffix)
                 
-                # Upload file
+                # Upload file with public-read ACL for HLS files
+                extra_args = {
+                    'ContentType': content_type,
+                    'ACL': 'public-read'  # Make HLS files publicly accessible
+                }
+                
                 s3_client.upload_file(
                     str(file_path),
                     S3_BUCKET_NAME,
                     s3_key,
-                    ExtraArgs={'ContentType': content_type}
+                    ExtraArgs=extra_args
                 )
                 
                 uploaded_keys.append(s3_key)
@@ -189,23 +262,6 @@ def delete_track_files(track_id):
     except ClientError as e:
         logger.error(f"Error deleting track files: {e}")
         raise
-
-
-def get_cloudfront_url(s3_key):
-    """
-    Convert S3 key to CloudFront URL.
-    
-    Args:
-        s3_key: S3 object key
-    
-    Returns:
-        str: CloudFront URL
-    """
-    if CLOUDFRONT_DOMAIN:
-        return f"https://{CLOUDFRONT_DOMAIN}/{s3_key}"
-    else:
-        # Fallback to S3 direct URL
-        return f"https://{S3_BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{s3_key}"
 
 
 def _get_content_type(file_extension):

@@ -12,11 +12,15 @@ class Settings:
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     IS_PRODUCTION: bool = ENVIRONMENT == "production"
     IS_DEVELOPMENT: bool = ENVIRONMENT == "development"
+    IS_RAILWAY: bool = os.getenv("RAILWAY_ENVIRONMENT") is not None
     
     # Server
     HOST: str = os.getenv("HOST", "0.0.0.0")
     PORT: int = int(os.getenv("PORT", 8000))
-    API_BASE_URL: str = os.getenv("API_BASE_URL", "http://localhost:8000")
+    API_BASE_URL: str = os.getenv("API_BASE_URL") or (
+        f"https://{os.getenv('RAILWAY_PUBLIC_DOMAIN')}" if os.getenv("RAILWAY_PUBLIC_DOMAIN")
+        else "http://localhost:8000"
+    )
     
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://user:pass@localhost:5432/mist_db")
@@ -26,7 +30,6 @@ class Settings:
     AWS_SECRET_ACCESS_KEY: str = os.getenv("AWS_SECRET_ACCESS_KEY", "")
     AWS_REGION: str = os.getenv("AWS_REGION", "us-east-1")
     S3_BUCKET_NAME: str = os.getenv("S3_BUCKET_NAME", "mist-music-cdn")
-    CLOUDFRONT_DOMAIN: str = os.getenv("CLOUDFRONT_DOMAIN", "")
     
     # Redis (for Celery)
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -53,21 +56,16 @@ class Settings:
         #return self.IS_PRODUCTION#
     
     @property
-    def ENABLE_PROXY(self) -> bool:
-        """Enable S3 proxy only in development"""
-        return self.IS_DEVELOPMENT
-    
-    @property
     def KEY_CORS_ORIGIN(self) -> str:
         """CORS origin for encryption key endpoint"""
         if self.IS_DEVELOPMENT:
             return "*"
         else:
-            # Production: Return first client URL or CloudFront domain
+            # Production: Return first client URL
             client_urls = os.getenv("CLIENT_URLS", "")
             if client_urls:
                 return client_urls.split(",")[0].strip()
-            return f"https://{self.CLOUDFRONT_DOMAIN}" if self.CLOUDFRONT_DOMAIN else "*"
+            return "*"
     
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO" if IS_PRODUCTION else "DEBUG")
@@ -86,10 +84,8 @@ class Settings:
             if not self.AWS_SECRET_ACCESS_KEY:
                 errors.append("AWS_SECRET_ACCESS_KEY is required in production")
             
-            if not self.CLOUDFRONT_DOMAIN:
-                errors.append("CLOUDFRONT_DOMAIN is required in production")
             
-            if not os.getenv("CLIENT_URLS"):
+            if not os.getenv("CLIENT_URLS") and not self.IS_RAILWAY:
                 errors.append("CLIENT_URLS is required in production")
             
             if self.SECRET_KEY == "dev-secret-key-change-in-production":
@@ -109,8 +105,6 @@ class Settings:
         print(f"Server:           {self.HOST}:{self.PORT}")
         print(f"API Base:         {self.API_BASE_URL}")
         print(f"S3 Bucket:        {self.S3_BUCKET_NAME}")
-        print(f"CloudFront:       {self.CLOUDFRONT_DOMAIN or 'Not configured'}")
-        print(f"Proxy Enabled:    {self.ENABLE_PROXY}")
         print(f"CORS Origins:     {len(self.ALLOWED_ORIGINS)} allowed")
         print(f"Log Level:        {self.LOG_LEVEL}")
         print("="*50 + "\n")

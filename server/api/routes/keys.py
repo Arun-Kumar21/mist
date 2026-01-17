@@ -60,9 +60,12 @@ async def get_key(track_id: int):
             media_type="application/octet-stream",
             headers={
                 "Content-Length": "16",
+                "Content-Type": "application/octet-stream",
                 "Cache-Control": "public, max-age=31536000",
-                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Origin": settings.KEY_CORS_ORIGIN,
                 "Access-Control-Allow-Methods": "GET, OPTIONS",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Expose-Headers": "Content-Length, Content-Type",
             }
         )
 

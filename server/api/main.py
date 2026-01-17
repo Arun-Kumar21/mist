@@ -85,16 +85,12 @@ app.include_router(listen_router, prefix=API_PREFIX)
 # Admin routes
 app.include_router(admin_router, prefix=API_PREFIX)
 
-# Key route
+# Key route (at /api/v1/keys)
 app.include_router(key_router, prefix=API_PREFIX)
 
-# Proxy route (DEV ONLY - for local testing without CloudFront)
-if settings.ENABLE_PROXY:
-    from api.routes.proxy import router as proxy_router
-    app.include_router(proxy_router, prefix=API_PREFIX)
-    logger.info("Proxy endpoint enabled (development)")
-else:
-    logger.info("Proxy endpoint disabled (production)")
+# Key route backward compatibility (at /api/keys for old HLS playlists)
+app.include_router(key_router, prefix="/api")
+logger.info("Keys endpoint registered at /api/v1/keys and /api/keys (backward compatibility)")
 
 if __name__ == "__main__":
     import uvicorn

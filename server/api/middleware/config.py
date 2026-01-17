@@ -12,8 +12,8 @@ PUBLIC_ROUTES: Set[str] = {
 
 # Define route prefixes that should be public
 PUBLIC_PREFIXES: Set[str] = {
-    "/api/v1/proxy",   # HLS proxy for development
-    "/api/v1/keys",    # Decryption keys
+    "/api/v1/keys",    # Decryption keys (new path)
+    "/api/keys",       # Decryption keys (backward compatibility for old HLS playlists)
 }
 
 # Define specific routes that should be public (for GET requests only on tracks)
