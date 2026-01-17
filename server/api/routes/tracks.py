@@ -21,7 +21,7 @@ API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')
 API_PREFIX = 'api/v1'
 
 
-@router.get("/")
+@router.get("")
 async def get_tracks(
     limit: int = Query(default=20, ge=1, le=100),
     skip: int = Query(default=0, ge=0),
