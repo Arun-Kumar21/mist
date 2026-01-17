@@ -77,23 +77,30 @@ class Settings:
     def validate(self):
         """Validate critical production settings"""
         if self.IS_PRODUCTION:
+            warnings = []
             errors = []
             
             if not self.AWS_ACCESS_KEY_ID:
-                errors.append("AWS_ACCESS_KEY_ID is required in production")
+                warnings.append("AWS_ACCESS_KEY_ID is not set - S3 uploads will not work")
             
             if not self.AWS_SECRET_ACCESS_KEY:
-                errors.append("AWS_SECRET_ACCESS_KEY is required in production")
+                warnings.append("AWS_SECRET_ACCESS_KEY is not set - S3 uploads will not work")
             
             
             if not os.getenv("CLIENT_URLS") and not self.IS_RAILWAY:
-                errors.append("CLIENT_URLS is required in production")
+                warnings.append("CLIENT_URLS is not set - CORS may not work correctly")
             
             if self.SECRET_KEY == "dev-secret-key-change-in-production":
                 errors.append("SECRET_KEY must be changed in production")
             
             if self.JWT_SECRET_KEY == "dev-secret-key-change-in-production":
                 errors.append("JWT_SECRET_KEY must be changed in production")
+            
+            if warnings:
+                print("\n⚠️  Configuration Warnings:")
+                for warning in warnings:
+                    print(f"  - {warning}")
+                print()
             
             if errors:
                 raise ValueError(
