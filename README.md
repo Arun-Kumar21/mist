@@ -2,11 +2,11 @@
 
 A full-stack web application implementing secure, scalable music streaming with HTTP Live Streaming (HLS) protocol and asynchronous audio processing.
 
+> Initial test deployment
+
 ## Architecture
 
 ![Architecture](./arch.png)
-
-The system implements a distributed architecture with the following components:
 
 - **Frontend**: React 19 SPA with TypeScript, HLS.js for adaptive streaming, Zustand for state management
 - **Backend**: FastAPI with async request handling, SQLAlchemy ORM for PostgreSQL integration
