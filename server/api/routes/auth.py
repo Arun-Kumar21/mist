@@ -45,6 +45,14 @@ class RegisterResponse(BaseModel):
     user_id: str
 
 
+# OPTIONS handlers for CORS preflight
+@router.options("/register")
+@router.options("/login")
+async def options_handler():
+    """Handle CORS preflight requests"""
+    return {"status": "ok"}
+
+
 @router.post("/register", response_model=RegisterResponse)
 @limiter.limit("10/minute")
 def register(request: Request, req: UserCreate):

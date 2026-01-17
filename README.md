@@ -45,3 +45,4 @@ Celery workers execute the following tasks asynchronously:
 - [ ] Build content-based recommendation system using audio embeddings
 - [ ] Implement collaborative filtering for user recommendations
 - [ ] Add playlist management system
+- [ ] Fix UI design

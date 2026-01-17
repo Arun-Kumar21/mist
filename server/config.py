@@ -47,7 +47,9 @@ class Settings:
         else:
             # Production: Only specific domains
             client_urls = os.getenv("CLIENT_URLS", "").split(",")
-            return [url.strip() for url in client_urls if url.strip()]
+            origins = [url.strip() for url in client_urls if url.strip()]
+            # If no CLIENT_URLS set, allow all origins (not recommended but prevents blocking)
+            return origins if origins else ["*"]
     
     @property
     def CORS_ALLOW_CREDENTIALS(self) -> bool:

@@ -5,7 +5,6 @@ import { useAuthStore } from '../store/authStore';
 
 export default function Register() {
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,7 +18,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const registerResponse = await authApi.register(username, email, password);
+      const registerResponse = await authApi.register(username, password);
       const userResponse = await authApi.getMe();
       const userData = userResponse.data;
       setAuth(
@@ -56,17 +55,6 @@ export default function Register() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              required
-              className="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
               required
               className="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-blue-500"
             />
