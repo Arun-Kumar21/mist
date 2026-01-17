@@ -63,22 +63,24 @@ def initialize_database():
 
 def validate_environment():
     """Validate required environment variables"""
-    required_vars = [
-        'DATABASE_URL',
-        'SECRET_KEY',
-        'JWT_SECRET_KEY',
-    ]
-    
-    missing_vars = [var for var in required_vars if not os.getenv(var)]
-    
-    if missing_vars:
-        logger.error(f"Missing required environment variables: {', '.join(missing_vars)}")
+    # Critical variables - must be set
+    if not os.getenv('DATABASE_URL'):
+        logger.error("Missing required environment variable: DATABASE_URL")
         return False
+    
+    if not os.getenv('SECRET_KEY'):
+        logger.error("Missing required environment variable: SECRET_KEY")
+        return False
+    
+    # JWT_SECRET_KEY falls back to SECRET_KEY in config, so just warn if not set
+    if not os.getenv('JWT_SECRET_KEY'):
+        logger.warning("JWT_SECRET_KEY not set, will use SECRET_KEY as fallback")
     
     # Warn about AWS credentials but don't fail
     if not os.getenv('AWS_ACCESS_KEY_ID') or not os.getenv('AWS_SECRET_ACCESS_KEY'):
         logger.warning("AWS credentials not configured - S3 features will not work")
     
+    logger.info("Environment validation passed")
     return True
 
 
