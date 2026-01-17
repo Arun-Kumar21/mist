@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router';
 import { tracksApi, listenApi } from '../lib/api';
 import { useAuthStore } from '../store/authStore';
 import { useHLSPlayer } from '../hooks/useHLSPlayer';
-import { useListeningSession } from '../hooks/useListeningSession';
 import TrackInfo from '../components/player/TrackInfo';
 import PlayerControls from '../components/player/PlayerControls';
 import BufferVisualization from '../components/player/BufferVisualization';
@@ -33,14 +32,10 @@ export default function Player() {
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [bufferedRanges, setBufferedRanges] = useState<{ start: number; end: number }[]>([]);
+    const [sessionId, setSessionId] = useState<number | null>(null);
+    const [quota, setQuota] = useState<any>(null);
 
     const { hlsLoaded } = useHLSPlayer(streamInfo, audioRef, loading, error);
-    const { sessionId, quota } = useListeningSession(
-        track?.track_id, 
-        isPlaying, 
-        audioRef, 
-        user
-    );
 
     // Load track and stream info
     useEffect(() => {
@@ -53,6 +48,14 @@ export default function Player() {
 
                 const streamResponse = await tracksApi.getStreamInfo(parseInt(id));
                 setStreamInfo(streamResponse.data);
+
+                // Start listening session for quota tracking
+                const sessionResponse = user 
+                    ? await listenApi.startSession(parseInt(id), user)
+                    : await listenApi.startSession(parseInt(id));
+                
+                setSessionId(sessionResponse.data.session_id);
+                setQuota(sessionResponse.data.quota);
             } catch (err: any) {
                 if (err.response?.status === 429) {
                     const detail = err.response?.data?.detail;
@@ -70,13 +73,34 @@ export default function Player() {
         };
 
         loadTrack();
-    }, [id]);
+    }, [id, user]);
+
+    // Heartbeat while playing
+    useEffect(() => {
+        if (!isPlaying || sessionId === null || !audioRef.current) return;
+
+        const heartbeatInterval = setInterval(async () => {
+            if (audioRef.current && sessionId !== null) {
+                try {
+                    const response = await listenApi.heartbeat(
+                        sessionId,
+                        audioRef.current.currentTime
+                    );
+                    setQuota(response.data.quota);
+                } catch (err) {
+                    // Heartbeat failed, will retry
+                }
+            }
+        }, 5000);
+
+        return () => clearInterval(heartbeatInterval);
+    }, [isPlaying, sessionId]);
 
     // Complete session on track end or unmount
     useEffect(() => {
         return () => {
             if (sessionId !== null && audioRef.current) {
-                listenApi.complete(sessionId, audioRef.current.currentTime).catch(console.error);
+                listenApi.complete(sessionId, audioRef.current.currentTime).catch(() => {});
             }
         };
     }, [sessionId]);
@@ -122,7 +146,7 @@ export default function Player() {
             try {
                 await listenApi.complete(sessionId, audioRef.current.duration);
             } catch (err) {
-                console.error('Failed to complete session:', err);
+                // Session completion failed
             }
         }
     };
@@ -156,17 +180,15 @@ export default function Player() {
             <header className="bg-white border-b border-gray-300 p-4">
                 <div className="max-w-4xl mx-auto flex justify-between items-center">
                     <h1 className="text-xl font-bold">Music Player</h1>
-                    {quota && (
-                        <div className="text-sm text-gray-600">
-                            {quota.unlimited ? (
-                                <span>Unlimited listening</span>
-                            ) : (
-                                <span>
-                                    Quota: {Math.floor(quota.minutes_remaining)}min / {Math.floor(quota.quota_limit)}min
-                                </span>
-                            )}
-                        </div>
-                    )}
+                    <div className="text-sm text-gray-600">
+                        {!quota && <span>Loading quota...</span>}
+                        {quota && quota.unlimited && <span>Unlimited listening</span>}
+                        {quota && !quota.unlimited && (
+                            <span>
+                                Remaining: {Math.floor(quota.minutes_remaining || 0)}min of {Math.floor(quota.quota_limit || 0)}min
+                            </span>
+                        )}
+                    </div>
                 </div>
             </header>
 
