@@ -49,7 +49,7 @@ export default function Player() {
         const loadTrack = async () => {
             try {
                 const trackResponse = await tracksApi.getTrack(parseInt(id));
-                setTrack(trackResponse.data.track);
+                setTrack(trackResponse.data);
 
                 const streamResponse = await tracksApi.getStreamInfo(parseInt(id));
                 setStreamInfo(streamResponse.data);

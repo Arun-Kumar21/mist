@@ -19,8 +19,17 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const response = await authApi.register(username, email, password);
-      setAuth(response.data.user, response.data.access_token);
+      const registerResponse = await authApi.register(username, email, password);
+      const userResponse = await authApi.getMe();
+      const userData = userResponse.data;
+      setAuth(
+        {
+          id: parseInt(userData.user_id),
+          username: userData.username,
+          role: userData.role as 'user' | 'admin'
+        },
+        registerResponse.data.token
+      );
       navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Registration failed');

@@ -4,7 +4,7 @@ import { listenApi } from '../lib/api';
 export function useListeningSession(
     trackId: number | undefined,
     isPlaying: boolean,
-    audioRef: React.RefObject<HTMLAudioElement>,
+    audioRef: React.RefObject<HTMLAudioElement | null>,
     user: any
 ) {
     const [sessionId, setSessionId] = useState<number | null>(null);

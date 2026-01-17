@@ -20,7 +20,12 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
       try {
         const response = await authApi.getMe();
-        setUser(response.data);
+        const userData = response.data;
+        setUser({
+          id: parseInt(userData.user_id),
+          username: userData.username,
+          role: userData.role as 'user' | 'admin'
+        });
       } catch (err) {
         logout();
         navigate('/login');

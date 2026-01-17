@@ -9,7 +9,7 @@ interface StreamInfo {
 
 export function useHLSPlayer(
     streamInfo: StreamInfo | null,
-    audioRef: React.RefObject<HTMLAudioElement>,
+    audioRef: React.RefObject<HTMLAudioElement | null>,
     loading: boolean,
     error: string
 ) {

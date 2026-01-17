@@ -37,13 +37,22 @@ export const authApi = {
 
 export const tracksApi = {
     getTracks: (params?: { skip?: number; limit?: number; genre?: string }) =>
-        api.get<Track[]>('/tracks', { params }),
+        api.get<{
+            success: boolean;
+            count: number;
+            tracks: Track[];
+        }>('/tracks', { params }),
 
     getPopular: () => api.get<Track[]>('/tracks/popular'),
 
     getTrack: (id: number) => api.get<Track>(`/tracks/${id}`),
 
-    searchTrack: (search: string) => api.get<Track>(`/tracks/search?q=${search}`),
+    searchTrack: (search: string) => api.get<{
+        success: boolean;
+        query: string;
+        count: number;
+        tracks: Track[];
+    }>(`/tracks/search?q=${search}`),
 
     getStreamInfo: (id: number) => api.get<{
         success: boolean;
