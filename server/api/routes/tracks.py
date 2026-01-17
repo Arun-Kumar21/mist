@@ -98,7 +98,6 @@ async def get_track_by_id(track_id: int):
 @router.get("/{track_id}/stream")
 async def get_stream_info(track_id: int, request: Request):
     try:
-        # Check quota before providing stream
         from services.listening_service import ListeningService
         from services.s3_service import generate_hls_stream_url
         
@@ -107,14 +106,9 @@ async def get_stream_info(track_id: int, request: Request):
         if hasattr(request.state, 'user'):
             user = request.state.user
             user_id = str(user.user_id)
-            logger.info(f"Stream request from authenticated user: {user_id}, role: {user.role}")
-        else:
-            logger.info(f"Stream request from anonymous user with IP: {request.client.host}")
         
         ip_address = request.client.host
         quota_info = ListeningService.check_quota_available(user_id, ip_address, user)
-        
-        logger.info(f"Quota check - has_quota: {quota_info['has_quota']}, limit: {quota_info['quota_limit']}, used: {quota_info['minutes_used']}, remaining: {quota_info['minutes_remaining']}")
         
         if not quota_info["has_quota"]:
             raise HTTPException(
@@ -133,13 +127,12 @@ async def get_stream_info(track_id: int, request: Request):
         if not track.cdn_url:
             raise HTTPException(status_code=404, detail="Stream not available")
         
-        # Generate direct S3 URL with CORS-compatible signed URLs
         stream_url = generate_hls_stream_url(track_id)
         
         return {
             "success": True,
             "trackId": track.track_id,
-            "streamUrl": stream_url,  # Direct S3 URL for fast streaming
+            "streamUrl": stream_url,
             "keyEndpoint": f"{API_BASE_URL}/{API_PREFIX}/keys/{track_id}",
             "duration": track.duration_sec,
             "encrypted": True

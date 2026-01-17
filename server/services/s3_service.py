@@ -89,15 +89,10 @@ def generate_hls_stream_url(track_id: int):
 
 
 def configure_bucket_cors():
-    """
-    Configure S3 bucket CORS for direct streaming.
-    Run this once during setup to enable browser access to HLS files.
-    Includes local development URLs for encrypted HLS streaming.
-    """
+    """Configure S3 bucket CORS for direct streaming."""
     try:
         s3_client = _get_s3_client()
         
-        # Include common local development URLs
         allowed_origins = [
             "http://localhost:3000",
             "http://localhost:5173",
@@ -107,20 +102,18 @@ def configure_bucket_cors():
             "http://127.0.0.1:8000"
         ]
         
-        # Add production client URLs if configured
         client_urls = os.getenv("CLIENT_URLS", "")
         if client_urls:
             production_urls = [url.strip() for url in client_urls.split(",") if url.strip()]
             allowed_origins.extend(production_urls)
         
-        # If no specific origins, allow all (development only)
         if not client_urls:
             allowed_origins = ["*"]
         
         cors_configuration = {
             'CORSRules': [{
                 'AllowedHeaders': ['*'],
-                'AllowedMethods': ['GET', 'HEAD', 'OPTIONS'],
+                'AllowedMethods': ['GET', 'HEAD'],
                 'AllowedOrigins': allowed_origins,
                 'ExposeHeaders': ['ETag', 'Content-Length', 'Content-Type', 'Content-Range'],
                 'MaxAgeSeconds': 3600
@@ -142,17 +135,7 @@ def configure_bucket_cors():
 
 
 def upload_directory_to_s3(local_dir, s3_prefix):
-    """
-    Upload entire directory to S3, preserving structure.
-    Makes HLS files publicly readable for direct streaming.
-    
-    Args:
-        local_dir: Local directory path
-        s3_prefix: S3 prefix (e.g., 'audio/hls/12345')
-    
-    Returns:
-        list: S3 keys of uploaded files
-    """
+    """Upload directory to S3 with public-read ACL for HLS files."""
     try:
         s3_client = _get_s3_client()
         uploaded_keys = []
@@ -169,7 +152,7 @@ def upload_directory_to_s3(local_dir, s3_prefix):
                 # Upload file with public-read ACL for HLS files
                 extra_args = {
                     'ContentType': content_type,
-                    'ACL': 'public-read'  # Make HLS files publicly accessible
+                    'ACL': 'public-read'
                 }
                 
                 s3_client.upload_file(
@@ -218,18 +201,10 @@ def download_file_from_s3(s3_key, local_path):
 
 def delete_track_files(track_id):
     """
-    Delete all S3 files for a track (original + HLS).
-    
-    Args:
-        track_id: Track identifier
-    
-    Returns:
-        int: Number of objects deleted
-    """
+    Delete all S3 files for a track (original + HLS)."""
     try:
         s3_client = _get_s3_client()
         
-
         prefixes = [
             f"audio/original/{track_id}/",
             f"audio/hls/{track_id}/"
