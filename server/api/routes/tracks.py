@@ -24,14 +24,18 @@ API_PREFIX = 'api/v1'
 @router.get("/")
 async def get_tracks(
     limit: int = Query(default=20, ge=1, le=100),
+    skip: int = Query(default=0, ge=0),
     offset: int = Query(default=0, ge=0),
     genre: Optional[str] = Query(default=None)
 ):
+    # Support both 'skip' and 'offset' for backward compatibility
+    actual_offset = skip if skip > 0 else offset
+    
     try:
         if genre:
-            tracks = TrackRepository.filter_by_genre(genre, limit, offset)
+            tracks = TrackRepository.filter_by_genre(genre, limit, actual_offset)
         else:
-            tracks = TrackRepository.get_all(limit, offset)
+            tracks = TrackRepository.get_all(limit, actual_offset)
         
         return {
             "success": True,
