@@ -63,7 +63,6 @@ def initialize_database():
 
 def validate_environment():
     """Validate required environment variables"""
-    # Critical variables - must be set
     if not os.getenv('DATABASE_URL'):
         logger.error("Missing required environment variable: DATABASE_URL")
         return False
@@ -72,11 +71,9 @@ def validate_environment():
         logger.error("Missing required environment variable: SECRET_KEY")
         return False
     
-    # JWT_SECRET_KEY falls back to SECRET_KEY in config, so just warn if not set
     if not os.getenv('JWT_SECRET_KEY'):
         logger.warning("JWT_SECRET_KEY not set, will use SECRET_KEY as fallback")
     
-    # Warn about AWS credentials but don't fail
     if not os.getenv('AWS_ACCESS_KEY_ID') or not os.getenv('AWS_SECRET_ACCESS_KEY'):
         logger.warning("AWS credentials not configured - S3 features will not work")
     
@@ -106,25 +103,21 @@ def main():
     logger.info("MIST Music Platform - Starting Server")
     logger.info("="*60)
     
-    # Step 1: Validate environment
     logger.info("Step 1: Validating environment...")
     if not validate_environment():
         logger.error("Environment validation failed. Exiting.")
         sys.exit(1)
     
-    # Step 2: Wait for database
     logger.info("Step 2: Checking database connectivity...")
     if not wait_for_database():
         logger.error("Database is not available. Exiting.")
         sys.exit(1)
     
-    # Step 3: Initialize database
     logger.info("Step 3: Initializing database...")
     if not initialize_database():
         logger.error("Database initialization failed. Exiting.")
         sys.exit(1)
     
-    # Step 4: Start server
     logger.info("Step 4: Starting server...")
     try:
         start_server()
