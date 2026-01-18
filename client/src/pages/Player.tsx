@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { tracksApi, listenApi } from '../lib/api';
 import { useAuthStore } from '../store/authStore';
 import { useHLSPlayer } from '../hooks/useHLSPlayer';
