@@ -38,5 +38,4 @@ celery_app.conf.update(
     task_always_eager=False,
 )
 
-# Import tasks to register them with Celery
-from tasks.audio_processing import process_audio_task
+#from tasks.audio_processing import process_audio_task

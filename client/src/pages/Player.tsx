@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { tracksApi, listenApi } from '../lib/api';
 import { useAuthStore } from '../store/authStore';
 import { useHLSPlayer } from '../hooks/useHLSPlayer';
@@ -173,6 +173,22 @@ export default function Player() {
                 </div>
             </div>
         );
+    }
+
+    if (quota && !quota.minutes_remaining) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <h1 className='text-red-500 mb-4'>Limit reached for today!</h1>
+                    <button
+                        onClick={() => navigate('/')}
+                        className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700"
+                    >
+                        Back to Home
+                    </button>
+                </div>
+            </div>
+        )
     }
 
     return (
