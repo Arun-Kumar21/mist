@@ -9,6 +9,7 @@ from db.database import Base
 class UserRole(str, Enum):
     ADMIN = "admin"
     USER = "user"
+    GUEST = "guest"
 
 
 class User(Base):
@@ -16,13 +17,13 @@ class User(Base):
     __tablename__ = 'users'
 
     user_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    username = Column(String(50), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
+    username = Column(String(50), unique=True)
+    password_hash = Column(String(255)) 
 
     role = Column(
             SQLEnum(UserRole, name="user_role") ,
             nullable=False,
-            default=UserRole.USER
+            default=UserRole.GUEST
             )
 
     last_login_at = Column(DateTime, nullable=True)

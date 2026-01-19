@@ -1,7 +1,6 @@
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends, Request
-from pydantic import BaseModel, Field
-from typing import Optional
+from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -13,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from db.controllers.user_controller import UserRepository, UserCreate
 from db.controllers.analytics_controller import AnalyticsRepository
 from db.models.user import User
-from util.auth_dependencies import get_current_user, get_current_admin, sign_token
+from util.auth_dependencies import get_current_user, sign_token
 
 import logging
 
@@ -46,6 +45,7 @@ class RegisterResponse(BaseModel):
 
 
 # OPTIONS handlers for CORS preflight
+@router.options("/guest")
 @router.options("/register")
 @router.options("/login")
 async def options_handler():
@@ -144,6 +144,40 @@ def login(request: Request, req: UserCreate):
         logger.error(f"USER LOGIN ERROR: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+@router.post("/guest")
+def login_guest(request: Request):
+    """Create a guest user account"""
+    try: 
+        username = UserRepository.generate_username()    
+        exists = UserRepository.user_exists(username)
+
+        while exists:
+            username = UserRepository.generate_username()    
+            exists = UserRepository.user_exists(username)
+
+        user = UserRepository.create_guest_user(username)
+        
+        data = {
+            "username": user.username,
+            "role": user.role
+        }
+
+        token = sign_token(data)
+
+        if not token:
+            logger.error("Failed to sign token")
+            raise HTTPException(status_code=500, detail="Failed to generate token")
+
+        return TokenResponse(token=token, type="bearer")
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.error(f"USER LOGIN ERROR: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 
 @router.get("/me", response_model=UserResponse)
 def get_current_user_info(current_user: User = Depends(get_current_user)):
@@ -216,6 +250,4 @@ def get_user_stats(request: Request):
     except Exception as e:
         logger.error(f"Error fetching user stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-
 

@@ -1,8 +1,11 @@
 from datetime import datetime, UTC
+import faker
 from pydantic import BaseModel
 from typing import Optional, List
 import logging
 from uuid import UUID
+from faker import Faker
+import secrets
 
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
@@ -44,6 +47,7 @@ class UserRepository:
                 user = User(
                     username=data.username,
                     password_hash=generate_hash_password(data.password),
+                    role=UserRole.USER
                 )
                 session.add(user)
                 session.flush()
@@ -51,6 +55,29 @@ class UserRepository:
                 logger.info(f"Created user {user_id}: {user.username}")
                 return user_id
                 
+        except IntegrityError as e:
+            logger.error(f"Integrity error creating user: {e}")
+            raise
+        
+        except SQLAlchemyError as e:
+            logger.error(f"Database error creating user: {e}")
+            raise
+    
+    @staticmethod
+    def create_guest_user(username: str):
+        """
+        Create a guest user
+        """
+
+        try:
+            with get_db_session() as session:
+                user = User(username=username)
+                session.add(user)
+                session.flush()
+                user_id = user.user_id
+                logger.info(f"Created user {user_id}: {user.user_id}")
+                return user 
+           
         except IntegrityError as e:
             logger.error(f"Integrity error creating user: {e}")
             raise
@@ -331,4 +358,15 @@ class UserRepository:
         except SQLAlchemyError as e:
             logger.error(f"Error checking if user exists: {e}")
             raise
+
+    @staticmethod
+    def generate_username() -> str:
+        fake = Faker()     
+        base = fake.user_name()
+        suffix = secrets.token_hex(2)
+        username = "guest_" + base + "_" + suffix
+            
+        return username
+
+
     
