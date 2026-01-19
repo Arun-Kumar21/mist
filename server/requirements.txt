@@ -33,3 +33,4 @@ pandas==2.1.4
 # Utilities
 python-dotenv==1.0.0
 tqdm==4.66.1
+faker

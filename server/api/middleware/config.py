@@ -8,6 +8,7 @@ PUBLIC_ROUTES: Set[str] = {
     # Authentication routes
     "/api/v1/auth/register",
     "/api/v1/auth/login",
+    "/api/v1/auth/guest"
 }
 
 # Define route prefixes that should be public

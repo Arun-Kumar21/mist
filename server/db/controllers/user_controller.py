@@ -1,5 +1,4 @@
 from datetime import datetime, UTC
-import faker
 from pydantic import BaseModel
 from typing import Optional, List
 import logging

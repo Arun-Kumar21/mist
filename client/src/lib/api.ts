@@ -32,6 +32,9 @@ export const authApi = {
     login: (username: string, password: string) =>
         api.post<AuthResponse>('/auth/login', { username, password }),
 
+    loginAsGuest: () => 
+        api.post<AuthResponse>('/auth/guest'),
+
     getMe: () => api.get<UserResponse>('/auth/me'),
 };
 

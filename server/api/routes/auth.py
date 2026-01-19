@@ -144,8 +144,8 @@ def login(request: Request, req: UserCreate):
         logger.error(f"USER LOGIN ERROR: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.post("/guest")
-def login_guest(request: Request):
+@router.post("/guest", response_model=TokenResponse)
+def login_guest():
     """Create a guest user account"""
     try: 
         username = UserRepository.generate_username()    

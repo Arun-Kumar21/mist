@@ -28,7 +28,7 @@ export default function Login() {
             const user = {
                 id: parseInt(userData.user_id) || 0,
                 username: userData.username,
-                role: userData.role as 'user' | 'admin',
+                role: userData.role as 'guest' | 'user' | 'admin',
             };
             setAuth(user, token);
             navigate('/');
@@ -38,6 +38,34 @@ export default function Login() {
             setLoading(false);
         }
     };
+
+    const handleLoginAsGuest = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setError('')
+        setLoading(true)
+
+        try {
+            const response = await authApi.loginAsGuest();
+            const token = response.data.token;
+            setAuth(null as any, token);
+
+            const userResponse = await authApi.getMe();
+            const userData = userResponse.data;
+
+            const user = {
+                id: parseInt(userData.user_id),
+                username: userData.username,
+                role: userData.role as 'guest' | 'user'| 'admin'
+            }
+
+            setAuth(user, token);
+            navigate('/');
+        } catch (err:any) {
+            setError(err.response?.data?.detail || "Login failed")
+        } finally {
+            setLoading(false)
+        }
+    }
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -81,6 +109,11 @@ export default function Login() {
                         {loading ? 'Logging in...' : 'Login'}
                     </button>
                 </form>
+
+                <p className="mt-4 text-sm text-center">
+                    Login as <button onClick={(e: React.MouseEvent) => handleLoginAsGuest(e)} className="text-blue-600 hover:underline">Guest</button>
+                </p>
+
 
                 <p className="mt-4 text-sm text-center">
                     Don't have an account? <Link to="/register" className="text-blue-600 hover:underline">Register</Link>

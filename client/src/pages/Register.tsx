@@ -84,6 +84,10 @@ export default function Register() {
         <p className="mt-4 text-sm text-center">
           Already have an account? <Link to="/login" className="text-blue-600 hover:underline">Login</Link>
         </p>
+
+        <p className="mt-4 text-sm text-center">
+            Go Back to <Link to="/" className='text-blue-600 hover:underline'>Home</Link>
+        </p>             
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 export interface User {
     id: number;
     username: string;
-    role: 'user' | 'admin';
+    role: 'guest' | 'user' | 'admin';
 }
 
 export interface UserResponse {
