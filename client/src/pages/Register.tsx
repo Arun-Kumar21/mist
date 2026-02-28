@@ -1,85 +1,90 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router';
-import { authApi } from '../lib/api';
-import { useAuthStore } from '../store/authStore';
+import { useState } from 'react'
+import { useNavigate, Link } from 'react-router'
+import { authApi } from '../lib/api'
+import { useAuthStore } from '../store/authStore'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 export default function Register() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  
-  const navigate = useNavigate();
-  const setAuth = useAuthStore((state) => state.setAuth);
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const navigate = useNavigate()
+  const setAuth = useAuthStore((state) => state.setAuth)
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+    e.preventDefault()
+    setError('')
+    setLoading(true)
 
     try {
-      const res = await authApi.register(username, password);
-      const { token, user_id, username: uname, role } = res.data as any;
+      const res = await authApi.register(username, password)
+      const { token, user_id, username: uname, role } = res.data as any
       setAuth(
         { id: parseInt(user_id), username: uname, role: role as 'user' | 'admin' },
         token
-      );
-      navigate('/');
+      )
+      navigate('/')
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Registration failed');
+      setError(err.response?.data?.detail || 'Registration failed')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full p-8 bg-white border border-gray-300">
-        <h1 className="text-2xl font-bold mb-6">Register</h1>
-        
+    <div className="min-h-[80vh] flex items-center justify-center">
+      <div className="w-full max-w-sm space-y-6">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">Create account</h1>
+          <p className="text-sm text-neutral-500">Sign up to start listening</p>
+        </div>
+
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-300 text-red-700 text-sm">
+          <div className="p-3 border border-red-300 bg-red-50 text-red-700 text-sm">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Username</label>
-            <input
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Username</label>
+            <Input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              placeholder="your_username"
               required
-              className="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-blue-500"
+              autoFocus
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Password</label>
-            <input
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Password</label>
+            <Input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
               required
               minLength={6}
-              className="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-blue-500"
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2 px-4 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400"
-          >
-            {loading ? 'Registering...' : 'Register'}
-          </button>
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? 'Creating account...' : 'Create account'}
+          </Button>
         </form>
 
-        <p className="mt-4 text-sm text-center">
-          Already have an account? <Link to="/login" className="text-blue-600 hover:underline">Login</Link>
+        <p className="text-sm text-neutral-500 text-center">
+          Already have an account?{' '}
+          <Link to="/login" className="text-black font-medium hover:underline">
+            Sign in
+          </Link>
         </p>
       </div>
     </div>
-  );
+  )
 }

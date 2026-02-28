@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router';
 import { useAuthStore } from '../store/authStore';
 import { tracksApi, adminApi } from '../lib/api';
 import type { Track } from '../types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { getGradient } from '@/lib/gradient';
+import { Play, Pencil, Trash2, Check, X, RefreshCw } from 'lucide-react';
 
 export default function AdminTracks() {
     const { user } = useAuthStore();
@@ -18,13 +22,6 @@ export default function AdminTracks() {
         album: '',
         genre: '',
     });
-
-    // Redirect if not admin
-    useEffect(() => {
-        if (user?.role !== 'admin') {
-            navigate('/');
-        }
-    }, [user, navigate]);
 
     useEffect(() => {
         loadTracks();
@@ -97,158 +94,129 @@ export default function AdminTracks() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="text-lg">Loading tracks...</div>
+            <div className="flex items-center justify-center py-32">
+                <div className="flex items-center gap-2 text-neutral-400">
+                    <div className="w-4 h-4 rounded-full border-2 border-neutral-200 border-t-black animate-spin" />
+                    <span className="text-sm">Loading tracks…</span>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <header className="bg-white border-b border-gray-300 p-4">
-                <div className="max-w-7xl mx-auto flex justify-between items-center">
-                    <h1 className="text-xl font-bold">Manage Tracks</h1>
-                    <div className="flex items-center gap-4">
-                        
-                        <button
-                            onClick={() => navigate('/admin/upload')}
-                            className="px-4 py-1 bg-blue-600 text-white hover:bg-blue-700 text-sm"
-                        >
-                            Upload Track
-                        </button>
-                    </div>
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-xl font-bold tracking-tight">Manage Tracks</h1>
+                    <p className="text-sm text-neutral-500">{tracks.length} track{tracks.length !== 1 ? 's' : ''} in library</p>
                 </div>
-            </header>
+                <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={loadTracks}>
+                        <RefreshCw className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button size="sm" onClick={() => navigate('/admin/upload')}>Upload Track</Button>
+                </div>
+            </div>
 
-            <main className="max-w-7xl mx-auto p-6">
-                {error && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-300 text-red-700 text-sm">
-                        {error}
-                    </div>
-                )}
+            {error && (
+                <div className="p-3 rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm">{error}</div>
+            )}
 
-                <div className="bg-white border border-gray-300">
-                    <div className="p-4 border-b border-gray-300 flex justify-between items-center">
-                        <h2 className="font-bold">All Tracks ({tracks.length})</h2>
-                        <button
-                            onClick={loadTracks}
-                            className="px-3 py-1 text-sm border border-gray-300 hover:bg-gray-50"
-                        >
-                            Refresh
-                        </button>
-                    </div>
-
-                    {tracks.length === 0 ? (
-                        <div className="p-8 text-center text-gray-600">
-                            No tracks found. Upload your first track!
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="border-b border-gray-300 bg-gray-50">
-                                        <th className="text-left p-3 text-sm font-medium">ID</th>
-                                        <th className="text-left p-3 text-sm font-medium">Title</th>
-                                        <th className="text-left p-3 text-sm font-medium">Artist</th>
-                                        <th className="text-left p-3 text-sm font-medium">Album</th>
-                                        <th className="text-left p-3 text-sm font-medium">Genre</th>
-                                        <th className="text-right p-3 text-sm font-medium">Duration</th>
-                                        <th className="text-right p-3 text-sm font-medium">Plays</th>
-                                        <th className="text-right p-3 text-sm font-medium">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
+            {tracks.length === 0 ? (
+                <div className="rounded-2xl border border-neutral-200 p-12 text-center text-neutral-500 text-sm">
+                    No tracks yet. <button onClick={() => navigate('/admin/upload')} className="underline">Upload your first track</button>.
+                </div>
+            ) : (
+                <div className="rounded-2xl border border-neutral-200 overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="border-b border-neutral-100 bg-neutral-50/70">
+                                    <th className="text-left px-4 py-3 text-xs font-medium text-neutral-500 uppercase tracking-wide w-10"></th>
+                                    <th className="text-left px-4 py-3 text-xs font-medium text-neutral-500 uppercase tracking-wide">Title</th>
+                                    <th className="text-left px-4 py-3 text-xs font-medium text-neutral-500 uppercase tracking-wide">Artist</th>
+                                    <th className="text-left px-4 py-3 text-xs font-medium text-neutral-500 uppercase tracking-wide">Album</th>
+                                    <th className="text-left px-4 py-3 text-xs font-medium text-neutral-500 uppercase tracking-wide">Genre</th>
+                                    <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500 uppercase tracking-wide">Dur.</th>
+                                    <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500 uppercase tracking-wide">Plays</th>
+                                    <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500 uppercase tracking-wide">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
                                     {tracks.map((track) => (
-                                        <tr key={track.track_id} className="border-b border-gray-200 hover:bg-gray-50">
-                                            <td className="p-3 text-sm">{track.track_id}</td>
-                                            <td className="p-3">
+                                        <tr key={track.track_id} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/50 transition-colors">
+                                            <td className="px-4 py-3">
+                                                <div className="w-8 h-8 rounded-lg shrink-0" style={{ background: getGradient(track.track_id) }} />
+                                            </td>
+                                            <td className="px-4 py-3">
                                                 {editingTrack?.track_id === track.track_id ? (
-                                                    <input
-                                                        type="text"
+                                                    <Input
                                                         value={editForm.title}
                                                         onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                                                        className="w-full px-2 py-1 border border-gray-300 text-sm"
+                                                        className="h-7 text-xs min-w-[120px]"
                                                     />
                                                 ) : (
-                                                    <span className="font-medium">{track.title}</span>
+                                                    <span className="text-sm font-medium">{track.title}</span>
                                                 )}
                                             </td>
-                                            <td className="p-3">
+                                            <td className="px-4 py-3">
                                                 {editingTrack?.track_id === track.track_id ? (
-                                                    <input
-                                                        type="text"
+                                                    <Input
                                                         value={editForm.artist}
                                                         onChange={(e) => setEditForm({ ...editForm, artist: e.target.value })}
-                                                        className="w-full px-2 py-1 border border-gray-300 text-sm"
+                                                        className="h-7 text-xs min-w-[100px]"
                                                     />
                                                 ) : (
-                                                    track.artist_name
+                                                    <span className="text-sm text-neutral-600">{track.artist_name}</span>
                                                 )}
                                             </td>
-                                            <td className="p-3">
+                                            <td className="px-4 py-3">
                                                 {editingTrack?.track_id === track.track_id ? (
-                                                    <input
-                                                        type="text"
+                                                    <Input
                                                         value={editForm.album}
                                                         onChange={(e) => setEditForm({ ...editForm, album: e.target.value })}
-                                                        className="w-full px-2 py-1 border border-gray-300 text-sm"
+                                                        className="h-7 text-xs min-w-[100px]"
                                                     />
                                                 ) : (
-                                                    track.album_title || '-'
+                                                    <span className="text-sm text-neutral-500">{track.album_title || '—'}</span>
                                                 )}
                                             </td>
-                                            <td className="p-3">
+                                            <td className="px-4 py-3">
                                                 {editingTrack?.track_id === track.track_id ? (
-                                                    <input
-                                                        type="text"
+                                                    <Input
                                                         value={editForm.genre}
                                                         onChange={(e) => setEditForm({ ...editForm, genre: e.target.value })}
-                                                        className="w-full px-2 py-1 border border-gray-300 text-sm"
+                                                        className="h-7 text-xs min-w-[80px]"
                                                     />
                                                 ) : (
-                                                    track.genre_top || '-'
+                                                    <span className="text-sm text-neutral-500">{track.genre_top || '—'}</span>
                                                 )}
                                             </td>
-                                            <td className="p-3 text-right text-sm">
+                                            <td className="px-4 py-3 text-right text-sm text-neutral-500">
                                                 {formatDuration(Math.floor(track.duration_sec))}
                                             </td>
-                                            <td className="p-3 text-right text-sm">{track.listens}</td>
-                                            <td className="p-3 text-right">
+                                            <td className="px-4 py-3 text-right text-sm text-neutral-500">{track.listens}</td>
+                                            <td className="px-4 py-3">
                                                 {editingTrack?.track_id === track.track_id ? (
-                                                    <div className="flex justify-end gap-2">
-                                                        <button
-                                                            onClick={handleSaveEdit}
-                                                            className="px-3 py-1 bg-green-600 text-white hover:bg-green-700 text-sm"
-                                                        >
-                                                            Save
-                                                        </button>
-                                                        <button
-                                                            onClick={handleCancelEdit}
-                                                            className="px-3 py-1 border border-gray-300 hover:bg-gray-50 text-sm"
-                                                        >
-                                                            Cancel
-                                                        </button>
+                                                    <div className="flex justify-end gap-1.5">
+                                                        <Button size="sm" onClick={handleSaveEdit} className="h-7 px-2.5">
+                                                            <Check className="w-3.5 h-3.5" />
+                                                        </Button>
+                                                        <Button size="sm" variant="outline" onClick={handleCancelEdit} className="h-7 px-2.5">
+                                                            <X className="w-3.5 h-3.5" />
+                                                        </Button>
                                                     </div>
                                                 ) : (
-                                                    <div className="flex justify-end gap-2">
-                                                        <button
-                                                            onClick={() => navigate(`/player/${track.track_id}`)}
-                                                            className="px-3 py-1 bg-green-600 text-white hover:bg-green-700 text-sm"
-                                                        >
-                                                            Play
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleEdit(track)}
-                                                            className="px-3 py-1 bg-blue-600 text-white hover:bg-blue-700 text-sm"
-                                                        >
-                                                            Edit
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDelete(track.track_id, track.title)}
-                                                            className="px-3 py-1 bg-red-600 text-white hover:bg-red-700 text-sm"
-                                                        >
-                                                            Delete
-                                                        </button>
+                                                    <div className="flex justify-end gap-1.5">
+                                                        <Button size="sm" variant="ghost" onClick={() => navigate(`/player/${track.track_id}`)} className="h-7 px-2.5">
+                                                            <Play className="w-3.5 h-3.5" />
+                                                        </Button>
+                                                        <Button size="sm" variant="ghost" onClick={() => handleEdit(track)} className="h-7 px-2.5">
+                                                            <Pencil className="w-3.5 h-3.5" />
+                                                        </Button>
+                                                        <Button size="sm" variant="ghost" onClick={() => handleDelete(track.track_id, track.title)} className="h-7 px-2.5 text-red-500 hover:text-red-600 hover:bg-red-50">
+                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                        </Button>
                                                     </div>
                                                 )}
                                             </td>
@@ -256,10 +224,9 @@ export default function AdminTracks() {
                                     ))}
                                 </tbody>
                             </table>
-                        </div>
-                    )}
+                    </div>
                 </div>
-            </main>
+            )}
         </div>
     );
 }

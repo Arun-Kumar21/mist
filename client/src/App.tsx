@@ -9,6 +9,7 @@ import AdminTracks from './pages/AdminTracks';
 import Player from './pages/Player';
 import Library from './pages/Library';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 import { useAuthStore } from './store/authStore';
 import { authApi } from './lib/api';
 import Layout from './components/Layout';
@@ -64,8 +65,8 @@ function AppContent() {
                 <Route path="/search" element={<SearchPage />} />
                 <Route path="/library" element={<Library />} />
                 <Route path="/player/:id" element={<ProtectedRoute><Player /></ProtectedRoute>} />
-                <Route path="/admin/upload" element={<AdminUpload />} />
-                <Route path="/admin/tracks" element={<AdminTracks />} />
+                <Route path="/admin/upload" element={<AdminRoute><AdminUpload /></AdminRoute>} />
+                <Route path="/admin/tracks" element={<AdminRoute><AdminTracks /></AdminRoute>} />
             </Route>
             
             <Route path="*" element={<Navigate to="/" replace />} />

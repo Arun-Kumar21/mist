@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuthStore } from '../store/authStore';
 import { uploadApi } from '../lib/api';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Upload, RotateCcw, ArrowLeft } from 'lucide-react';
 
 export default function AdminUpload() {
     const { user } = useAuthStore();
@@ -18,13 +21,6 @@ export default function AdminUpload() {
     const [jobStatus, setJobStatus] = useState<string | null>(null);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
-
-    // Redirect if not admin
-    useEffect(() => {
-        if (user?.role !== 'admin') {
-            navigate('/');
-        }
-    }, [user, navigate]);
 
     // Poll job status when we have a jobId
     useEffect(() => {
@@ -190,134 +186,89 @@ export default function AdminUpload() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <header className="bg-white border-b border-gray-300 p-4">
-                <div className="max-w-4xl mx-auto flex justify-between items-center">
-                    <h1 className="text-xl font-bold">Upload Track</h1>
+        <div className="max-w-lg space-y-6">
+            <div className="flex items-center gap-3">
+                <button onClick={() => navigate('/admin/tracks')} className="text-neutral-400 hover:text-black transition-colors">
+                    <ArrowLeft className="w-4 h-4" />
+                </button>
+                <div>
+                    <h1 className="text-xl font-bold tracking-tight">Upload Track</h1>
+                    <p className="text-sm text-neutral-500">Add a new track to the library</p>
                 </div>
-            </header>
+            </div>
 
-            <main className="max-w-4xl mx-auto p-6">
-                <div className="bg-white border border-gray-300 p-6">
-                    {error && (
-                        <div className="mb-4 p-3 bg-red-50 border border-red-300 text-red-700 text-sm">
-                            {error}
-                        </div>
-                    )}
+            {error && (
+                <div className="p-3 rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm">{error}</div>
+            )}
+            {success && (
+                <div className="p-3 rounded-xl border border-green-200 bg-green-50 text-green-700 text-sm">{success}</div>
+            )}
 
-                    {success && (
-                        <div className="mb-4 p-3 bg-green-50 border border-green-300 text-green-700 text-sm">
-                            {success}
-                        </div>
-                    )}
-
-                    {uploading && jobStatus && (
-                        <div className="mb-4 p-4 bg-blue-50 border border-blue-300">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium">{getStatusMessage()}</span>
-                                <span className="text-sm">{uploadProgress}%</span>
-                            </div>
-                            <div className="w-full bg-gray-200 h-2">
-                                <div
-                                    className="bg-blue-600 h-2 transition-all duration-300"
-                                    style={{ width: `${uploadProgress}%` }}
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium mb-2">
-                                Audio File <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="file"
-                                accept="audio/*"
-                                onChange={handleFileChange}
-                                disabled={uploading}
-                                className="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-blue-500"
-                            />
-                            {file && (
-                                <p className="text-xs text-gray-600 mt-1">
-                                    Selected: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                                </p>
-                            )}
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium mb-1">
-                                Title <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                required
-                                disabled={uploading}
-                                className="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-blue-500"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium mb-1">
-                                Artist <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                value={artist}
-                                onChange={(e) => setArtist(e.target.value)}
-                                required
-                                disabled={uploading}
-                                className="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-blue-500"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Album</label>
-                            <input
-                                type="text"
-                                value={album}
-                                onChange={(e) => setAlbum(e.target.value)}
-                                disabled={uploading}
-                                className="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-blue-500"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Genre</label>
-                            <input
-                                type="text"
-                                value={genre}
-                                onChange={(e) => setGenre(e.target.value)}
-                                disabled={uploading}
-                                placeholder="e.g., Pop, Rock, Jazz"
-                                className="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-blue-500"
-                            />
-                        </div>
-
-                        <div className="flex gap-4">
-                            <button
-                                type="submit"
-                                disabled={uploading || !file}
-                                className="flex-1 py-2 px-4 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400"
-                            >
-                                {uploading ? 'Uploading...' : 'Upload Track'}
-                            </button>
-
-                            {!uploading && (file || title || artist || album || genre) && (
-                                <button
-                                    type="button"
-                                    onClick={resetForm}
-                                    className="px-4 py-2 border border-gray-300 hover:bg-gray-50"
-                                >
-                                    Reset
-                                </button>
-                            )}
-                        </div>
-                    </form>
+            {uploading && jobStatus && (
+                <div className="p-4 rounded-2xl border border-neutral-200 bg-neutral-50 space-y-2">
+                    <div className="flex justify-between text-sm">
+                        <span className="text-neutral-700 font-medium">{getStatusMessage()}</span>
+                        {uploadProgress > 0 && <span className="text-neutral-400">{uploadProgress}%</span>}
+                    </div>
+                    <div className="w-full h-1.5 bg-neutral-200 rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-black rounded-full transition-all duration-300"
+                            style={{ width: jobStatus === 'processing' ? '100%' : `${uploadProgress}%` }}
+                        />
+                    </div>
                 </div>
-            </main>
+            )}
+
+            <form onSubmit={handleSubmit} className="rounded-2xl border border-neutral-200 bg-white p-6 space-y-4">
+                {/* File picker */}
+                <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Audio File <span className="text-red-400">*</span></label>
+                    <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors ${
+                        file ? 'border-black bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'
+                    } ${uploading ? 'pointer-events-none opacity-50' : ''}`}>
+                        <Upload className="w-5 h-5 text-neutral-400" />
+                        {file ? (
+                            <span className="text-sm text-black font-medium text-center">
+                                {file.name}
+                                <span className="block text-xs text-neutral-400 font-normal">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                            </span>
+                        ) : (
+                            <span className="text-sm text-neutral-500">Click to select an audio file</span>
+                        )}
+                        <input type="file" accept="audio/*" onChange={handleFileChange} disabled={uploading} className="hidden" />
+                    </label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                        <label className="text-sm font-medium">Title <span className="text-red-400">*</span></label>
+                        <Input value={title} onChange={(e) => setTitle(e.target.value)} required disabled={uploading} placeholder="Track title" />
+                    </div>
+                    <div className="space-y-1.5">
+                        <label className="text-sm font-medium">Artist <span className="text-red-400">*</span></label>
+                        <Input value={artist} onChange={(e) => setArtist(e.target.value)} required disabled={uploading} placeholder="Artist name" />
+                    </div>
+                    <div className="space-y-1.5">
+                        <label className="text-sm font-medium">Album</label>
+                        <Input value={album} onChange={(e) => setAlbum(e.target.value)} disabled={uploading} placeholder="Album title" />
+                    </div>
+                    <div className="space-y-1.5">
+                        <label className="text-sm font-medium">Genre</label>
+                        <Input value={genre} onChange={(e) => setGenre(e.target.value)} disabled={uploading} placeholder="e.g. Jazz, Rock" />
+                    </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                    <Button type="submit" disabled={uploading || !file} className="flex-1">
+                        {uploading ? 'Uploading…' : 'Upload Track'}
+                    </Button>
+                    {!uploading && (file || title || artist || album || genre) && (
+                        <Button type="button" variant="outline" onClick={resetForm}>
+                            <RotateCcw className="w-3.5 h-3.5" />
+                        </Button>
+                    )}
+                </div>
+            </form>
         </div>
     );
 }

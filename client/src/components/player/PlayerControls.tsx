@@ -22,32 +22,10 @@ export default function PlayerControls({
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    return (
-        <div className="space-y-4">
-            {/* Play/Pause Button */}
-            <div className="flex justify-center">
-                <button
-                    onClick={onTogglePlay}
-                    disabled={!hlsLoaded}
-                    className={`w-12 h-12 rounded-full flex items-center justify-center text-white ${
-                        hlsLoaded
-                            ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
-                            : 'bg-gray-400 cursor-not-allowed'
-                    }`}
-                >
-                    {isPlaying ? (
-                        <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
-                            <rect x="6" y="4" width="4" height="16" />
-                            <rect x="14" y="4" width="4" height="16" />
-                        </svg>
-                    ) : (
-                        <svg className="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M8 5v14l11-7z" />
-                        </svg>
-                    )}
-                </button>
-            </div>
+    const pct = duration ? (currentTime / duration) * 100 : 0;
 
+    return (
+        <div className="space-y-6">
             {/* Progress Bar */}
             <div className="space-y-2">
                 <input
@@ -56,17 +34,39 @@ export default function PlayerControls({
                     max={duration || 0}
                     value={currentTime}
                     onChange={(e) => onSeek(parseFloat(e.target.value))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    className="w-full h-1 rounded-full appearance-none cursor-pointer"
                     style={{
-                        background: `linear-gradient(to right, #2563eb 0%, #2563eb ${
-                            (currentTime / duration) * 100
-                        }%, #e5e7eb ${(currentTime / duration) * 100}%, #e5e7eb 100%)`,
+                        background: `linear-gradient(to right, #0a0a0a 0%, #0a0a0a ${pct}%, #e5e5e5 ${pct}%, #e5e5e5 100%)`,
                     }}
                 />
-                <div className="flex justify-between text-sm text-gray-600">
+                <div className="flex justify-between text-xs text-neutral-400">
                     <span>{formatTime(currentTime)}</span>
                     <span>{formatTime(duration)}</span>
                 </div>
+            </div>
+
+            {/* Play/Pause Button */}
+            <div className="flex justify-center">
+                <button
+                    onClick={onTogglePlay}
+                    disabled={!hlsLoaded}
+                    className={`w-14 h-14 rounded-full flex items-center justify-center shadow-sm transition-all ${
+                        hlsLoaded
+                            ? 'bg-black text-white hover:bg-neutral-800 hover:scale-105 cursor-pointer'
+                            : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
+                    }`}
+                >
+                    {isPlaying ? (
+                        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                            <rect x="6" y="4" width="4" height="16" />
+                            <rect x="14" y="4" width="4" height="16" />
+                        </svg>
+                    ) : (
+                        <svg className="w-6 h-6 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                        </svg>
+                    )}
+                </button>
             </div>
         </div>
     );

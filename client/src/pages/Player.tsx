@@ -135,20 +135,23 @@ export default function Player() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="text-lg">Loading track...</div>
+            <div className="flex items-center justify-center py-32">
+                <div className="flex items-center gap-2 text-neutral-500">
+                    <div className="w-4 h-4 rounded-full border-2 border-neutral-300 border-t-black animate-spin" />
+                    <span className="text-sm">Loading track…</span>
+                </div>
             </div>
         );
     }
 
     if (error || !track) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="text-center">
-                    <div className="text-red-600 mb-4">{error || 'Track not found'}</div>
+            <div className="flex items-center justify-center py-32">
+                <div className="text-center space-y-4">
+                    <p className="text-sm text-red-500">{error || 'Track not found'}</p>
                     <button
                         onClick={() => navigate('/')}
-                        className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700"
+                        className="text-sm px-4 py-2 rounded-full border border-neutral-200 hover:border-neutral-400 transition-colors"
                     >
                         Back to Home
                     </button>
@@ -159,39 +162,36 @@ export default function Player() {
 
     if (quota && !quota.minutes_remaining) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="text-center">
-                    <h1 className='text-red-500 mb-4'>Limit reached for today!</h1>
+            <div className="flex items-center justify-center py-32">
+                <div className="text-center space-y-4">
+                    <p className="text-sm text-neutral-700">Daily listening limit reached.</p>
                     <button
                         onClick={() => navigate('/')}
-                        className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700"
+                        className="text-sm px-4 py-2 rounded-full border border-neutral-200 hover:border-neutral-400 transition-colors"
                     >
                         Back to Home
                     </button>
                 </div>
             </div>
-        )
+        );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <header className="bg-white border-b border-gray-300 p-4">
-                <div className="max-w-4xl mx-auto flex justify-between items-center">
-                    <h1 className="text-xl font-bold">Music Player</h1>
-                    <div className="text-sm text-gray-600">
-                        {!quota && <span>Loading quota...</span>}
-                        {quota && quota.unlimited && <span>Unlimited listening</span>}
-                        {quota && !quota.unlimited && (
-                            <span>
-                                Remaining: {Math.floor(quota.minutes_remaining || 0)}min of {Math.floor(quota.quota_limit || 0)}min
+        <div className="flex justify-center py-8">
+            <div className="w-full max-w-md space-y-6">
+                {/* Quota badge */}
+                <div className="flex justify-end">
+                    {quota?.unlimited
+                        ? <span className="text-xs text-neutral-400 bg-neutral-50 border border-neutral-200 rounded-full px-3 py-1">Unlimited</span>
+                        : quota && (
+                            <span className="text-xs text-neutral-400 bg-neutral-50 border border-neutral-200 rounded-full px-3 py-1">
+                                {Math.floor(quota.minutes_remaining || 0)} min left
                             </span>
-                        )}
-                    </div>
+                          )
+                    }
                 </div>
-            </header>
 
-            <main className="max-w-4xl p-6">
-                <div className="bg-white border border-gray-300 p-8">
+                <div className="rounded-2xl border border-neutral-200/80 bg-white/70 backdrop-blur-sm p-8 shadow-sm">
                     <TrackInfo 
                         track={track} 
                         hlsLoaded={hlsLoaded} 
@@ -223,7 +223,7 @@ export default function Player() {
                         onSeek={handleSeek}
                     />
                 </div>
-            </main>
+            </div>
         </div>
     );
 }
