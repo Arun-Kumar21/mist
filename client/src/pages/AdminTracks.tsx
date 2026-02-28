@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { useAuthStore } from '../store/authStore';
 import { tracksApi, adminApi } from '../lib/api';
 import type { Track } from '../types';
 import { Button } from '@/components/ui/button';
@@ -9,7 +8,6 @@ import { getGradient } from '@/lib/gradient';
 import { Play, Pencil, Trash2, Check, X, RefreshCw } from 'lucide-react';
 
 export default function AdminTracks() {
-    const { user } = useAuthStore();
     const navigate = useNavigate();
 
     const [tracks, setTracks] = useState<Track[]>([]);
@@ -153,7 +151,7 @@ export default function AdminTracks() {
                                                     <Input
                                                         value={editForm.title}
                                                         onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                                                        className="h-7 text-xs min-w-[120px]"
+                                                        className="h-7 text-xs min-w-30"
                                                     />
                                                 ) : (
                                                     <span className="text-sm font-medium">{track.title}</span>
@@ -164,7 +162,7 @@ export default function AdminTracks() {
                                                     <Input
                                                         value={editForm.artist}
                                                         onChange={(e) => setEditForm({ ...editForm, artist: e.target.value })}
-                                                        className="h-7 text-xs min-w-[100px]"
+                                                        className="h-7 text-xs min-w-25"
                                                     />
                                                 ) : (
                                                     <span className="text-sm text-neutral-600">{track.artist_name}</span>
@@ -175,7 +173,7 @@ export default function AdminTracks() {
                                                     <Input
                                                         value={editForm.album}
                                                         onChange={(e) => setEditForm({ ...editForm, album: e.target.value })}
-                                                        className="h-7 text-xs min-w-[100px]"
+                                                        className="h-7 text-xs min-w-25"
                                                     />
                                                 ) : (
                                                     <span className="text-sm text-neutral-500">{track.album_title || '—'}</span>
@@ -186,7 +184,7 @@ export default function AdminTracks() {
                                                     <Input
                                                         value={editForm.genre}
                                                         onChange={(e) => setEditForm({ ...editForm, genre: e.target.value })}
-                                                        className="h-7 text-xs min-w-[80px]"
+                                                        className="h-7 text-xs min-w-20"
                                                     />
                                                 ) : (
                                                     <span className="text-sm text-neutral-500">{track.genre_top || '—'}</span>
