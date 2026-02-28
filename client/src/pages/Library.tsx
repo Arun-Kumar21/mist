@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router";
+import { useNavigate } from "react-router";
 import { tracksApi } from "../lib/api";
+import { useAuthStore } from "../store/authStore";
 import type { Track } from "../types";
 
 function TrackSkeleton() {
@@ -13,7 +14,7 @@ function TrackSkeleton() {
     );
 }
 
-function TrackCard({ track }: { track: Track }) {
+function TrackCard({ track, onPlay }: { track: Track; onPlay: (id: number) => void }) {
     const formatDuration = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
@@ -21,7 +22,10 @@ function TrackCard({ track }: { track: Track }) {
     };
 
     return (
-        <Link to={`/player/${track.track_id}`} className="border border-gray-300 p-3 hover:bg-gray-50 transition-colors block">
+        <button
+            onClick={() => onPlay(track.track_id)}
+            className="border border-gray-300 p-3 hover:bg-gray-50 transition-colors block text-left w-full"
+        >
             <div className="font-medium text-sm mb-1">{track.title}</div>
             <div className="text-xs text-gray-600 mb-1">{track.artist_name}</div>
             <div className="text-xs text-gray-500 flex gap-3">
@@ -29,16 +33,27 @@ function TrackCard({ track }: { track: Track }) {
                 <span>{formatDuration(track.duration_sec)}</span>
                 {track.listens > 0 && <span>{track.listens} plays</span>}
             </div>
-        </Link>
+        </button>
     );
 }
 
 export default function Library() {
+    const { isAuthenticated } = useAuthStore();
+    const navigate = useNavigate();
     const [tracks, setTracks] = useState<Track[]>([]);
     const [loading, setLoading] = useState(false);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
+    const [authError, setAuthError] = useState(false);
     const LIMIT = 20;
+
+    const handlePlay = (trackId: number) => {
+        if (!isAuthenticated) {
+            setAuthError(true);
+            return;
+        }
+        navigate(`/player/${trackId}`);
+    };
 
     useEffect(() => {
         loadTracks();
@@ -47,6 +62,7 @@ export default function Library() {
     const loadTracks = async () => {
         try {
             setLoading(true);
+            setAuthError(false);
             const skip = (page - 1) * LIMIT;
             const res = await tracksApi.getTracks({ skip, limit: LIMIT });
             
@@ -79,6 +95,18 @@ export default function Library() {
         <div className="max-w-2xl mx-auto p-4">
             <h1 className="font-medium text-lg mb-4">Music Library</h1>
 
+            {authError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-300 text-red-700 text-sm">
+                    Please log in to listen to tracks.{' '}
+                    <button
+                        onClick={() => navigate('/login')}
+                        className="underline font-medium"
+                    >
+                        Log in
+                    </button>
+                </div>
+            )}
+
             {loading && (
                 <div className="flex flex-col gap-2">
                     {[...Array(20)].map((_, i) => <TrackSkeleton key={i} />)}
@@ -92,7 +120,7 @@ export default function Library() {
                     </div>
                     <div className="flex flex-col gap-2 mb-4">
                         {tracks.map((track) => (
-                            <TrackCard key={track.track_id} track={track} />
+                            <TrackCard key={track.track_id} track={track} onPlay={handlePlay} />
                         ))}
                     </div>
 

@@ -1,48 +1,128 @@
-# MIST: Music Streaming Platform
+# MIST
 
-A full-stack web application implementing secure, scalable music streaming with HTTP Live Streaming (HLS) protocol and asynchronous audio processing.
+A music streaming platform built with React, FastAPI, and HLS. Upload audio files, they get transcoded into AES-128 encrypted HLS streams and served from S3.
 
-> Initial test deployment
+## Stack
 
-## Architecture
+- **Frontend** — React 19 + TypeScript, HLS.js, Zustand, Tailwind
+- **Backend** — FastAPI, SQLAlchemy, PostgreSQL (pgvector)
+- **Workers** — Celery + Redis for async audio processing
+- **Storage** — AWS S3 for HLS segments and playlists
 
-![Architecture](./arch.png)
+## How it works
 
-- **Frontend**: React 19 SPA with TypeScript, HLS.js for adaptive streaming, Zustand for state management
-- **Backend**: FastAPI with async request handling, SQLAlchemy ORM for PostgreSQL integration
-- **Task Queue**: Celery workers with Redis broker for asynchronous audio processing
-- **Storage**: AWS S3 for static asset delivery with direct public access and CORS configuration
-- **Database**: PostgreSQL with pgvector extension for audio feature embeddings
+When a track is uploaded, a Celery worker picks it up and runs it through FFmpeg — normalising the audio, generating multi-bitrate HLS variants (64/128/192kbps), encrypting each segment with AES-128, extracting audio features (MFCCs, spectral centroids, chroma), and pushing everything to S3. The encryption keys are stored in Postgres and only served to authenticated users.
 
-## Core Features
+![Architecture](mist%20arch.png)
 
-### 1. Adaptive Bitrate Streaming
-Audio files are transcoded to HLS format using FFmpeg, generating multiple quality variants (64kbps, 128kbps, 192kbps) with MPEG-TS segments and M3U8 playlists. The client implements HLS.js with custom loaders for seamless playback and bandwidth adaptation.
 
-### 2. Content Security
-- **Encryption**: AES-128 encryption applied during HLS conversion with track-specific 16-byte keys
-- **Authentication**: JWT-based access control with role-based authorization (user/admin)
-- **Key Management**: Encryption keys stored in PostgreSQL, served through authenticated endpoints
-- **Rate Limiting**: IP-based throttling on key retrieval endpoints
+## Installation
 
-### 3. Audio Processing Pipeline
-Celery workers execute the following tasks asynchronously:
-1. Format normalization and validation
-2. Multi-bitrate HLS transcoding with AES-128 encryption
-3. Audio feature extraction: MFCCs, spectral centroids, chroma features, zero-crossing rate
-4. Metadata parsing and database insertion
-5. S3 upload with public-read ACL and proper MIME types
+### Prerequisites
 
-### 4. Analytics & Tracking
-- Listening session management with heartbeat monitoring
-- Per-track play count aggregation
-- User listening history with temporal granularity
-- Foundation for content-based recommendation system
+- Docker & Docker Compose
+- AWS account with an S3 bucket
+- PostgreSQL database (or use a hosted one like Railway/Supabase)
+
+### 1. Clone the repo
+
+```bash
+git clone https://github.com/Arun-Kumar21/mist.git
+cd mist
+```
+
+### 2. Configure environment
+
+```bash
+cp server/.env.example server/.env
+```
+
+Open `server/.env` and fill in:
+
+```env
+DATABASE_URL=postgresql://user:password@localhost:5432/mist_db
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+AWS_REGION=us-east-1
+S3_BUCKET_NAME=your-bucket-name
+SECRET_KEY=some-random-string
+JWT_SECRET_KEY=another-random-string
+```
+
+Create a `client/.env` for the frontend:
+
+```env
+VITE_SERVER_URL=http://localhost:8000/api/v1
+```
+
+### 3. Run with Docker Compose
+
+```bash
+docker compose up --build
+```
+
+This starts:
+- API at `http://localhost:8000`
+- React client at `http://localhost:3000`
+- Celery worker + Flower at `http://localhost:5555`
+- Redis
+
+The API container runs `python start_server.py` which waits for the database, runs `init_db.py` to create all tables, then starts uvicorn — so no separate init step is needed.
+
+### Running without Docker
+
+**Backend:**
+
+```bash
+cd server
+python -m venv venv && source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+Initialise the database (creates all tables):
+
+```bash
+python init_db.py
+```
+
+Start the API:
+
+```bash
+python start_server.py
+```
+
+Or use uvicorn directly (skips the startup checks):
+
+```bash
+uvicorn api.main:app --reload --port 8000
+```
+
+In a separate terminal, start the Celery worker:
+
+```bash
+celery -A celery_app worker --loglevel=info --concurrency=2
+```
+
+**Frontend:**
+
+```bash
+cd client
+npm install
+npm run dev
+```
+
+## S3 Setup
+
+Your bucket needs a CORS policy that allows `GET` from your client origin and the HLS key endpoint. Run the setup script to apply it automatically:
+
+```bash
+cd server
+python setup_s3.py
+```
 
 ## TODO
 
-- [ ] Implement Redis caching for track metadata and popular songs
-- [ ] Build content-based recommendation system using audio embeddings
-- [ ] Implement collaborative filtering for user recommendations
-- [ ] Add playlist management system
-- [ ] Fix UI design
+- [ ] Redis caching for track metadata
+- [ ] Content-based recommendations using audio embeddings
+- [ ] Playlist management
+- [ ] UI redesign

@@ -105,12 +105,11 @@ async def get_stream_info(track_id: int, request: Request):
         from services.listening_service import ListeningService
         from services.s3_service import generate_hls_stream_url
         
-        user_id = None
-        user = None
-        if hasattr(request.state, 'user'):
-            user = request.state.user
-            user_id = str(user.user_id)
+        if not hasattr(request.state, 'user'):
+            raise HTTPException(status_code=401, detail="Authentication required")
         
+        user = request.state.user
+        user_id = str(user.user_id)
         ip_address = request.client.host
         quota_info = ListeningService.check_quota_available(user_id, ip_address, user)
         

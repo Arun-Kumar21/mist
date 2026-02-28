@@ -12,29 +12,29 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const verifyAuth = async () => {
-      if (!token) {
-        navigate('/login');
-        return;
-      }
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
 
-      try {
-        const response = await authApi.getMe();
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+
+    authApi.getMe()
+      .then((response) => {
         const userData = response.data;
         setUser({
           id: parseInt(userData.user_id),
           username: userData.username,
-          role: userData.role as 'user' | 'admin'
+          role: userData.role as 'user' | 'admin',
         });
-      } catch (err) {
+      })
+      .catch(() => {
         logout();
         navigate('/login');
-      }
-    };
-
-    if (isAuthenticated) {
-      verifyAuth();
-    }
+      });
   }, [token, isAuthenticated, navigate, setUser, logout]);
 
   if (!isAuthenticated) {

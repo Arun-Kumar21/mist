@@ -33,12 +33,11 @@ class ListenCompleteRequest(BaseModel):
 async def start_listening(req: ListenStartRequest, request: Request):
     """Start a listening session and check quota"""
     try:
-        user_id = None
-        user = None
-        if hasattr(request.state, 'user'):
-            user = request.state.user
-            user_id = str(user.user_id)
+        if not hasattr(request.state, 'user'):
+            raise HTTPException(status_code=401, detail="Authentication required")
         
+        user = request.state.user
+        user_id = str(user.user_id)
         ip_address = request.client.host
         
         track = TrackRepository.get_by_id(req.track_id)
@@ -78,10 +77,10 @@ async def start_listening(req: ListenStartRequest, request: Request):
 async def listening_heartbeat(req: ListenHeartbeatRequest, request: Request):
     """Update listening progress and quota in real-time"""
     try:
-        user_id = None
-        if hasattr(request.state, 'user'):
-            user_id = str(request.state.user.user_id)
+        if not hasattr(request.state, 'user'):
+            raise HTTPException(status_code=401, detail="Authentication required")
         
+        user_id = str(request.state.user.user_id)
         ip_address = request.client.host
         
         success = ListeningService.update_listening_progress(
@@ -95,7 +94,7 @@ async def listening_heartbeat(req: ListenHeartbeatRequest, request: Request):
             raise HTTPException(status_code=404, detail="Session not found")
         
         # Return updated quota info
-        user = request.state.user if hasattr(request.state, 'user') else None
+        user = request.state.user
         quota_info = ListeningService.check_quota_available(user_id, ip_address, user)
         
         return {
@@ -114,10 +113,10 @@ async def listening_heartbeat(req: ListenHeartbeatRequest, request: Request):
 async def complete_listening(req: ListenCompleteRequest, request: Request):
     """Complete listening session and update quota"""
     try:
-        user_id = None
-        if hasattr(request.state, 'user'):
-            user_id = str(request.state.user.user_id)
+        if not hasattr(request.state, 'user'):
+            raise HTTPException(status_code=401, detail="Authentication required")
         
+        user_id = str(request.state.user.user_id)
         ip_address = request.client.host
         
         success = ListeningService.complete_listening_session(
@@ -130,7 +129,7 @@ async def complete_listening(req: ListenCompleteRequest, request: Request):
         if not success:
             raise HTTPException(status_code=404, detail="Session not found")
         
-        quota_info = ListeningService.check_quota_available(user_id, ip_address)
+        quota_info = ListeningService.check_quota_available(user_id, ip_address, request.state.user)
         
         return {
             "success": True,
@@ -148,12 +147,11 @@ async def complete_listening(req: ListenCompleteRequest, request: Request):
 async def get_quota_status(request: Request):
     """Get current quota status"""
     try:
-        user_id = None
-        user = None
-        if hasattr(request.state, 'user'):
-            user = request.state.user
-            user_id = str(user.user_id)
+        if not hasattr(request.state, 'user'):
+            raise HTTPException(status_code=401, detail="Authentication required")
         
+        user = request.state.user
+        user_id = str(user.user_id)
         ip_address = request.client.host
         
         quota_info = ListeningService.check_quota_available(user_id, ip_address, user)

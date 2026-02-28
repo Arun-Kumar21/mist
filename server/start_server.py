@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""
-Railway deployment startup script
-"""
 import sys
 import logging
 import time
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 
 def wait_for_database(max_retries=10, retry_delay=3):
-    """Wait for database to be available"""
     from sqlalchemy import create_engine
     from sqlalchemy.exc import OperationalError
     
@@ -49,7 +48,6 @@ def wait_for_database(max_retries=10, retry_delay=3):
 
 
 def initialize_database():
-    """Initialize database tables"""
     try:
         logger.info("Initializing database tables...")
         from init_db import create_tables
@@ -62,7 +60,6 @@ def initialize_database():
 
 
 def validate_environment():
-    """Validate required environment variables"""
     if not os.getenv('DATABASE_URL'):
         logger.error("Missing required environment variable: DATABASE_URL")
         return False
@@ -82,8 +79,6 @@ def validate_environment():
 
 
 def start_server():
-    """Start the FastAPI server"""
-    logger.info("Starting FastAPI server...")
     import uvicorn
     
     port = int(os.getenv("PORT", 8000))
@@ -98,7 +93,6 @@ def start_server():
 
 
 def main():
-    """Main startup sequence"""
     logger.info("="*60)
     logger.info("MIST Music Platform - Starting Server")
     logger.info("="*60)

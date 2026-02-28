@@ -7,6 +7,17 @@ interface StreamInfo {
     encrypted: boolean;
 }
 
+function getAuthToken(): string | null {
+    try {
+        const raw = localStorage.getItem('auth-storage');
+        if (!raw) return null;
+        const { state } = JSON.parse(raw);
+        return state?.token ?? null;
+    } catch {
+        return null;
+    }
+}
+
 export function useHLSPlayer(
     streamInfo: StreamInfo | null,
     audioRef: React.RefObject<HTMLAudioElement | null>,
@@ -36,14 +47,13 @@ export function useHLSPlayer(
                     return;
                 }
 
-                // Custom loader to fix localhost key URIs
                 class CustomKeyLoader extends HlsLib.DefaultConfig.loader {
                     constructor(config: any) {
                         super(config);
                     }
                     load(context: any, config: any, callbacks: any) {
                         const url = context.url;
-                        if ((url.includes('localhost:8000') || url.includes('127.0.0.1:8000')) && 
+                        if ((url.includes('localhost:8000') || url.includes('127.0.0.1:8000')) &&
                             url.includes('/keys/') && streamInfo?.keyEndpoint) {
                             context.url = streamInfo.keyEndpoint;
                         }
@@ -55,8 +65,14 @@ export function useHLSPlayer(
                     debug: false,
                     enableWorker: true,
                     loader: CustomKeyLoader,
-                    xhrSetup: (xhr: XMLHttpRequest) => {
+                    xhrSetup: (xhr: XMLHttpRequest, url: string) => {
                         xhr.withCredentials = false;
+                        if (url.includes('/keys/') || url.includes('/api/keys/')) {
+                            const token = getAuthToken();
+                            if (token) {
+                                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+                            }
+                        }
                     }
                 });
 

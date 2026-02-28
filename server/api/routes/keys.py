@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Response, Request
 import sys
 from pathlib import Path
 
@@ -20,7 +20,6 @@ router = APIRouter(
 
 @router.options('/{track_id}')
 async def keys_options(track_id: int):
-    """Handle CORS preflight for key requests"""
     return Response(
         status_code=200,
         content=b'',
@@ -34,34 +33,29 @@ async def keys_options(track_id: int):
 
 
 @router.get('/{track_id}')
-async def get_key(track_id: int):
-    """
-    Returns raw 16-byte AES-128 encryption key for HLS player decryption.
-    This endpoint is called by HLS players when they encounter #EXT-X-KEY directive.
-    
-    IMPORTANT: Returns binary data, not JSON!
-    """
+async def get_key(track_id: int, request: Request):
+    if not hasattr(request.state, 'user'):
+        raise HTTPException(status_code=401, detail="Authentication required")
+
     try:
         key_record = TrackEncryptionKeysRepository.get_by_track_id(track_id)
 
         if not key_record:
             raise HTTPException(status_code=404, detail="Key not found")
-        
+
         key_bytes = key_record.get_key_bytes()
-        
+
         if not key_bytes or len(key_bytes) != 16:
             logger.error(f"Invalid key length for track {track_id}: {len(key_bytes) if key_bytes else 0} bytes")
             raise HTTPException(status_code=500, detail="Invalid encryption key")
-        
-        logger.info(f"Serving encryption key for track {track_id} ({len(key_bytes)} bytes)")
-        
+
         return Response(
             content=key_bytes,
             media_type="application/octet-stream",
             headers={
                 "Content-Length": "16",
                 "Content-Type": "application/octet-stream",
-                "Cache-Control": "public, max-age=31536000",
+                "Cache-Control": "no-store",
                 "Access-Control-Allow-Origin": settings.KEY_CORS_ORIGIN,
                 "Access-Control-Allow-Methods": "GET, OPTIONS",
                 "Access-Control-Allow-Headers": "*",
@@ -69,11 +63,10 @@ async def get_key(track_id: int):
             }
         )
 
-
     except HTTPException:
         raise
-
     except Exception as e:
         logger.error(f"Get key by track id error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 

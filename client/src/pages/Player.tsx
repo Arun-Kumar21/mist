@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { tracksApi, listenApi } from '../lib/api';
-import { useAuthStore } from '../store/authStore';
 import { useHLSPlayer } from '../hooks/useHLSPlayer';
 import TrackInfo from '../components/player/TrackInfo';
 import PlayerControls from '../components/player/PlayerControls';
@@ -19,7 +18,6 @@ interface StreamInfo {
 
 export default function Player() {
     const { id } = useParams<{ id: string }>();
-    const { user } = useAuthStore();
     const navigate = useNavigate();
 
     const audioRef = useRef<HTMLAudioElement>(null);
@@ -37,7 +35,6 @@ export default function Player() {
 
     const { hlsLoaded } = useHLSPlayer(streamInfo, audioRef, loading, error);
 
-    // Load track and stream info
     useEffect(() => {
         if (!id) return;
 
@@ -49,11 +46,7 @@ export default function Player() {
                 const streamResponse = await tracksApi.getStreamInfo(parseInt(id));
                 setStreamInfo(streamResponse.data);
 
-                // Start listening session for quota tracking
-                const sessionResponse = user 
-                    ? await listenApi.startSession(parseInt(id), user)
-                    : await listenApi.startSession(parseInt(id));
-                
+                const sessionResponse = await listenApi.startSession(parseInt(id));
                 setSessionId(sessionResponse.data.session_id);
                 setQuota(sessionResponse.data.quota);
             } catch (err: any) {
@@ -73,30 +66,21 @@ export default function Player() {
         };
 
         loadTrack();
-    }, [id, user]);
+    }, [id]);
 
-    // Heartbeat while playing
     useEffect(() => {
         if (!isPlaying || sessionId === null || !audioRef.current) return;
-
         const heartbeatInterval = setInterval(async () => {
             if (audioRef.current && sessionId !== null) {
                 try {
-                    const response = await listenApi.heartbeat(
-                        sessionId,
-                        audioRef.current.currentTime
-                    );
+                    const response = await listenApi.heartbeat(sessionId, audioRef.current.currentTime);
                     setQuota(response.data.quota);
-                } catch (err) {
-                    // Heartbeat failed, will retry
-                }
+                } catch {}
             }
         }, 5000);
-
         return () => clearInterval(heartbeatInterval);
     }, [isPlaying, sessionId]);
 
-    // Complete session on track end or unmount
     useEffect(() => {
         return () => {
             if (sessionId !== null && audioRef.current) {
@@ -145,9 +129,7 @@ export default function Player() {
         if (sessionId !== null && audioRef.current) {
             try {
                 await listenApi.complete(sessionId, audioRef.current.duration);
-            } catch (err) {
-                // Session completion failed
-            }
+            } catch {}
         }
     };
 

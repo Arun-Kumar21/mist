@@ -18,16 +18,11 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const registerResponse = await authApi.register(username, password);
-      const userResponse = await authApi.getMe();
-      const userData = userResponse.data;
+      const res = await authApi.register(username, password);
+      const { token, user_id, username: uname, role } = res.data as any;
       setAuth(
-        {
-          id: parseInt(userData.user_id),
-          username: userData.username,
-          role: userData.role as 'user' | 'admin'
-        },
-        registerResponse.data.token
+        { id: parseInt(user_id), username: uname, role: role as 'user' | 'admin' },
+        token
       );
       navigate('/');
     } catch (err: any) {
