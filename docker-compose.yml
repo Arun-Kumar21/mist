@@ -70,10 +70,10 @@ services:
       context: ./client
       dockerfile: Dockerfile
       args:
-        VITE_SERVER_URL: ${VITE_SERVER_URL:-http://localhost:8000/api/v1}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api/v1}
     container_name: mist-client
     ports:
-      - "3000:80"
+      - "3000:3000"
     depends_on:
       - api
     networks:

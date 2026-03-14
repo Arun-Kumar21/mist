@@ -1,5 +1,6 @@
-from routes.auth import router
-from routes.tracks import router
-from routes.listen import router
-from routes.admin import router
-from routes.keys import router
+from routes.auth import router as auth_router
+from routes.tracks import router as tracks_router
+from routes.listen import router as listen_router
+from routes.keys import router as keys_router
+
+__all__ = ["auth_router", "tracks_router", "listen_router", "keys_router"]

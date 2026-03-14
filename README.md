@@ -4,7 +4,7 @@ A self-hosted music streaming platform. Upload audio files and they are transcod
 
 ## Stack
 
-- **Frontend** — React 19, TypeScript, HLS.js, Zustand, Tailwind CSS, served by Nginx
+- **Frontend** — Next.js 15 (App Router), TypeScript, shadcn UI, Tailwind CSS, Zustand
 - **API** — FastAPI, SlowAPI rate limiting, JWT auth, SQLAlchemy
 - **Upload service** — FastAPI, S3 presigned POST, Celery task dispatch
 - **Processor** — Celery worker, FFmpeg, librosa, pgvector embeddings
@@ -44,7 +44,7 @@ api-service/       FastAPI app — auth, tracks, listening, keys
 upload-service/    FastAPI app — upload flow and job status
 processor/         Celery worker — FFmpeg pipeline and feature extraction
 shared/            Installable Python package — models, controllers, config, auth utils
-client/            React frontend
+client/            Next.js frontend
 docker-compose.yml Orchestrates all services
 ```
 
@@ -87,7 +87,7 @@ API_BASE_URL=http://localhost:8000
 Create `client/.env`:
 
 ```env
-VITE_SERVER_URL=http://localhost:8000/api/v1
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
 ```
 
 ### 3. Run with Docker Compose
@@ -98,7 +98,7 @@ docker compose up --build
 
 This starts:
 
-- React client at `http://localhost:3000`
+- Next.js client at `http://localhost:3000`
 - API at `http://localhost:8000`
 - Upload service at `http://localhost:8001`
 - Processor worker (no public port)
