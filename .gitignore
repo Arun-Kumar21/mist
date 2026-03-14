@@ -3,3 +3,7 @@ tasks.md
 
 test_*
 .env
+
+__pycache__
+node_modules
+.next

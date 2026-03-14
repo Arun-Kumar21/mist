@@ -14,7 +14,7 @@ A self-hosted music streaming platform. Upload audio files and they are transcod
 
 ## Features
 
-- User registration and login with bcrypt passwords and JWT tokens (7-day expiry)
+- Email-based registration and login with bcrypt passwords and JWT tokens (7-day expiry)
 - Multi-bitrate HLS transcoding at 64 kbps, 128 kbps, and 192 kbps
 - AES-128 encryption on all HLS segments; keys are served only to authenticated users
 - Direct-to-S3 upload via presigned POST (max 50 MB), keeping file bytes off the API

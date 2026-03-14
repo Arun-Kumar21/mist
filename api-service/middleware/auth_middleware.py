@@ -2,6 +2,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 import logging
+from uuid import UUID
 
 from shared.util.auth_dependencies import verify_token
 from shared.db.controllers.user_controller import UserRepository
@@ -40,7 +41,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
             if token_data is None:
                 return self._unauthorized("Invalid or expired token")
 
-            user = UserRepository.get_by_username(token_data.username)
+            try:
+                user = UserRepository.get_by_id(UUID(token_data.user_id))
+            except ValueError:
+                return self._unauthorized("Invalid token subject")
             if user is None:
                 return self._unauthorized("User not found")
 
@@ -48,7 +52,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 return self._forbidden("Admin privileges required")
 
             request.state.user = user
-            request.state.username = token_data.username
+            request.state.user_id = str(user.user_id)
+            request.state.username = user.username
+            request.state.email = user.email
             request.state.role = token_data.role
 
         except Exception as e:

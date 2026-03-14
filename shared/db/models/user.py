@@ -15,8 +15,9 @@ class User(Base):
     __tablename__ = 'users'
 
     user_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    username = Column(String(50), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    username = Column(String(50), nullable=False, index=True)
+    password_hash = Column(String(255), nullable=True)
     role = Column(SQLEnum(UserRole, name="user_role"), nullable=False, default=UserRole.USER)
     last_login_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.now(UTC))
@@ -25,6 +26,7 @@ class User(Base):
     def to_dict(self):
         return {
             'user_id': self.user_id,
+            'email': self.email,
             'username': self.username,
             'role': self.role,
             'last_login_at': self.last_login_at,

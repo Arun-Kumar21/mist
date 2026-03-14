@@ -6,6 +6,8 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from shared.config import settings
+from shared.db.database import create_tables
+import shared.db.models  # noqa: F401 — ensures all models are registered with Base
 from routes.auth import router as auth_router
 from routes.tracks import router as track_router
 from routes.keys import router as key_router
@@ -20,6 +22,12 @@ logger = logging.getLogger(__name__)
 limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
 
 app = FastAPI(title="MIST API", version="1.0.0")
+
+@app.on_event("startup")
+async def on_startup():
+    create_tables()
+    logger.info("Database tables ready")
+
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
