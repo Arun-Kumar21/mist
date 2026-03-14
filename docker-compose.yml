@@ -1,7 +1,4 @@
-version: '3.8'
-
 services:
-  # Redis - Message broker for Celery
   redis:
     image: redis:7-alpine
     container_name: mist-redis
@@ -17,75 +14,57 @@ services:
     networks:
       - mist-network
 
-  # FastAPI Backend
   api:
     build:
-      context: ./server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api-service/Dockerfile
     container_name: mist-api
     ports:
       - "8000:8000"
+    env_file:
+      - ./.env
     environment:
-      - DATABASE_URL=${DATABASE_URL}
+      - PORT=8000
       - REDIS_URL=redis://redis:6379/0
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_REGION=${AWS_REGION:-us-east-1}
-      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - API_BASE_URL=${API_BASE_URL:-http://api:8000}
     depends_on:
       redis:
         condition: service_healthy
-    volumes:
-      - ./server:/app
-      - audio-temp:/tmp/audio_processing
     networks:
       - mist-network
-    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 
-  # Celery Worker
-  celery-worker:
+  upload:
     build:
-      context: ./server
-      dockerfile: Dockerfile
-    container_name: mist-celery-worker
-    environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=redis://redis:6379/0
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_REGION=${AWS_REGION:-us-east-1}
-      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
-      - API_BASE_URL=${API_BASE_URL:-http://api:8000}
-    depends_on:
-      redis:
-        condition: service_healthy
-    volumes:
-      - ./server:/app
-      - audio-temp:/tmp/audio_processing
-    networks:
-      - mist-network
-    command: celery -A celery_app worker --loglevel=info --concurrency=2
-
-  # Celery Flower
-  celery-flower:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
-    container_name: mist-celery-flower
+      context: .
+      dockerfile: upload-service/Dockerfile
+    container_name: mist-upload
     ports:
-      - "5555:5555"
+      - "8001:8000"
+    env_file:
+      - ./.env
+    environment:
+      - PORT=8000
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - mist-network
+
+  processor:
+    build:
+      context: .
+      dockerfile: processor/Dockerfile
+    container_name: mist-processor
+    env_file:
+      - ./.env
     environment:
       - REDIS_URL=redis://redis:6379/0
     depends_on:
-      - redis
-      - celery-worker
+      redis:
+        condition: service_healthy
     networks:
       - mist-network
-    command: celery -A celery_app flower --port=5555
 
-  # React Frontend
   client:
     build:
       context: ./client
@@ -94,7 +73,7 @@ services:
         VITE_SERVER_URL: ${VITE_SERVER_URL:-http://localhost:8000/api/v1}
     container_name: mist-client
     ports:
-      - "3000:3000"
+      - "3000:80"
     depends_on:
       - api
     networks:
@@ -102,7 +81,6 @@ services:
 
 volumes:
   redis-data:
-  audio-temp:
 
 networks:
   mist-network:

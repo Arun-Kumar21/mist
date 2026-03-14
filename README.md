@@ -34,10 +34,10 @@ cd mist
 ### 2. Configure environment
 
 ```bash
-cp server/.env.example server/.env
+cp .env.example .env
 ```
 
-Open `server/.env` and fill in:
+Open `.env` and fill in:
 
 ```env
 DATABASE_URL=postgresql://user:password@localhost:5432/mist_db
@@ -63,11 +63,10 @@ docker compose up --build
 
 This starts:
 - API at `http://localhost:8000`
+- Upload service at `http://localhost:8001`
 - React client at `http://localhost:3000`
-- Celery worker + Flower at `http://localhost:5555`
+- Processor worker (no public port)
 - Redis
-
-The API container runs `python start_server.py` which waits for the database, runs `init_db.py` to create all tables, then starts uvicorn — so no separate init step is needed.
 
 ### Running without Docker
 

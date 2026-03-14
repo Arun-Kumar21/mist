@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Upload, RotateCcw, ArrowLeft } from 'lucide-react';
 
 export default function AdminUpload() {
-    const { user } = useAuthStore();
+    useAuthStore();
     const navigate = useNavigate();
 
     const [file, setFile] = useState<File | null>(null);

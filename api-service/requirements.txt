@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+slowapi
+python-multipart
+python-dotenv
+boto3
