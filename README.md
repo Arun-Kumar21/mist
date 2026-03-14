@@ -1,28 +1,60 @@
 # MIST
 
-A music streaming platform built with React, FastAPI, and HLS. Upload audio files, they get transcoded into AES-128 encrypted HLS streams and served from S3.
+A self-hosted music streaming platform. Upload audio files and they are transcoded into AES-128 encrypted HLS streams, served from S3, and playable in the browser with per-user daily listening quotas.
 
 ## Stack
 
-- **Frontend** — React 19 + TypeScript, HLS.js, Zustand, Tailwind
-- **Backend** — FastAPI, SQLAlchemy, PostgreSQL (pgvector)
-- **Workers** — Celery + Redis for async audio processing
-- **Storage** — AWS S3 for HLS segments and playlists
+- **Frontend** — React 19, TypeScript, HLS.js, Zustand, Tailwind CSS, served by Nginx
+- **API** — FastAPI, SlowAPI rate limiting, JWT auth, SQLAlchemy
+- **Upload service** — FastAPI, S3 presigned POST, Celery task dispatch
+- **Processor** — Celery worker, FFmpeg, librosa, pgvector embeddings
+- **Database** — PostgreSQL with pgvector extension
+- **Queue** — Redis (Celery broker and result backend)
+- **Storage** — AWS S3 (original uploads and HLS output)
+
+## Features
+
+- User registration and login with bcrypt passwords and JWT tokens (7-day expiry)
+- Multi-bitrate HLS transcoding at 64 kbps, 128 kbps, and 192 kbps
+- AES-128 encryption on all HLS segments; keys are served only to authenticated users
+- Direct-to-S3 upload via presigned POST (max 50 MB), keeping file bytes off the API
+- Async processing pipeline with Celery; job status polling until completion
+- Audio feature extraction using librosa (MFCCs, spectral centroid, chroma, tempo, etc.)
+- 40-dimensional normalized audio embeddings stored in pgvector for similarity search
+- Content-based similar tracks endpoint using cosine distance
+- Daily listening quota per user (5 minutes/day for free accounts)
+- Monotonic playback tracking via heartbeat and completion events to prevent double-counting
+- Admin endpoints for track update and deletion
+- Full-text and genre-based track search
 
 ## How it works
 
-When a track is uploaded, a Celery worker picks it up and runs it through FFmpeg — normalising the audio, generating multi-bitrate HLS variants (64/128/192kbps), encrypting each segment with AES-128, extracting audio features (MFCCs, spectral centroids, chroma), and pushing everything to S3. The encryption keys are stored in Postgres and only served to authenticated users.
+1. The client requests a presigned S3 URL from the upload service and uploads the file directly to S3.
+2. The upload service enqueues a Celery task.
+3. The processor worker downloads the file, extracts audio features, generates encrypted HLS variants with FFmpeg, uploads everything to S3, and writes all metadata to Postgres.
+4. The client polls job status until complete, then streams via HLS.js.
+5. The HLS player fetches segments from S3 and requests the AES key from the API, which requires a valid bearer token.
 
-![Architecture](mist%20arch.png)
+![Architecture](mist_arch.png)
 
+## Project structure
+
+```
+api-service/       FastAPI app — auth, tracks, listening, keys
+upload-service/    FastAPI app — upload flow and job status
+processor/         Celery worker — FFmpeg pipeline and feature extraction
+shared/            Installable Python package — models, controllers, config, auth utils
+client/            React frontend
+docker-compose.yml Orchestrates all services
+```
 
 ## Installation
 
 ### Prerequisites
 
-- Docker & Docker Compose
-- AWS account with an S3 bucket
-- PostgreSQL database (or use a hosted one like Railway/Supabase)
+- Docker and Docker Compose
+- AWS account with an S3 bucket and credentials
+- PostgreSQL database (local, Railway, Supabase, or similar)
 
 ### 1. Clone the repo
 
@@ -37,19 +69,22 @@ cd mist
 cp .env.example .env
 ```
 
-Open `.env` and fill in:
+Fill in `.env`:
 
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/mist_db
-AWS_ACCESS_KEY_ID=...
-AWS_SECRET_ACCESS_KEY=...
+DATABASE_URL=postgresql://user:password@host:5432/mist_db
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_REGION=us-east-1
 S3_BUCKET_NAME=your-bucket-name
-SECRET_KEY=some-random-string
-JWT_SECRET_KEY=another-random-string
+SECRET_KEY=a-long-random-string
+JWT_SECRET_KEY=another-long-random-string
+REDIS_URL=redis://redis:6379/0
+CLIENT_URLS=http://localhost:3000
+API_BASE_URL=http://localhost:8000
 ```
 
-Create a `client/.env` for the frontend:
+Create `client/.env`:
 
 ```env
 VITE_SERVER_URL=http://localhost:8000/api/v1
@@ -62,43 +97,45 @@ docker compose up --build
 ```
 
 This starts:
+
+- React client at `http://localhost:3000`
 - API at `http://localhost:8000`
 - Upload service at `http://localhost:8001`
-- React client at `http://localhost:3000`
 - Processor worker (no public port)
 - Redis
 
+Database tables are created automatically by SQLAlchemy when the API boots for the first time.
+
 ### Running without Docker
 
-**Backend:**
+Install the shared package first, then each service separately.
 
 ```bash
-cd server
-python -m venv venv && source venv/bin/activate  # Windows: venv\Scripts\activate
+# Shared package (required by all Python services)
+pip install -e shared/
+```
+
+**API service:**
+
+```bash
+cd api-service
 pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
 ```
 
-Initialise the database (creates all tables):
+**Upload service:**
 
 ```bash
-python init_db.py
+cd upload-service
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8001
 ```
 
-Start the API:
+**Processor worker:**
 
 ```bash
-python start_server.py
-```
-
-Or use uvicorn directly (skips the startup checks):
-
-```bash
-uvicorn api.main:app --reload --port 8000
-```
-
-In a separate terminal, start the Celery worker:
-
-```bash
+cd processor
+pip install -r requirements.txt
 celery -A celery_app worker --loglevel=info --concurrency=2
 ```
 
@@ -110,18 +147,27 @@ npm install
 npm run dev
 ```
 
-## S3 Setup
+## S3 bucket setup
 
-Your bucket needs a CORS policy that allows `GET` from your client origin and the HLS key endpoint. Run the setup script to apply it automatically:
+The bucket needs a CORS policy allowing `GET` and `PUT` from your client origin so the browser can upload files and the HLS player can fetch segments.
 
-```bash
-cd server
-python setup_s3.py
+Example CORS configuration for the bucket:
+
+```json
+[
+  {
+    "AllowedHeaders": ["*"],
+    "AllowedMethods": ["GET", "PUT", "POST"],
+    "AllowedOrigins": ["http://localhost:3000"],
+    "ExposeHeaders": []
+  }
+]
 ```
+
+Apply it via the AWS console under the bucket's Permissions tab, or with the AWS CLI.
 
 ## TODO
 
-- [ ] Redis caching for track metadata
-- [ ] Content-based recommendations using audio embeddings
-- [ ] Playlist management
-- [ ] UI redesign
+- Redis caching for track metadata
+- Playlist management
+- UI redesign

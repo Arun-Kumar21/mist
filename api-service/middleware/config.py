@@ -9,10 +9,9 @@ PUBLIC_ROUTES: Set[str] = {
 
 PUBLIC_PREFIXES: Set[str] = set()
 
-ADMIN_ROUTES: Set[str] = {"/api/v1/admin"}
+ADMIN_ROUTES: Set[str] = set()
 
 ADMIN_PREFIXES: Set[str] = {
-    "/api/v1/admin/",
     "/api/v1/upload",
 }
 

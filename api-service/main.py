@@ -10,7 +10,6 @@ from routes.auth import router as auth_router
 from routes.tracks import router as track_router
 from routes.keys import router as key_router
 from routes.listen import router as listen_router
-from routes.admin import router as admin_router
 from middleware import AuthMiddleware
 
 settings.validate()
@@ -48,7 +47,6 @@ app.include_router(router)
 app.include_router(auth_router, prefix=API_PREFIX)
 app.include_router(track_router, prefix=API_PREFIX)
 app.include_router(listen_router, prefix=API_PREFIX)
-app.include_router(admin_router, prefix=API_PREFIX)
 app.include_router(key_router, prefix=API_PREFIX)
 app.include_router(key_router, prefix="/api")
 
