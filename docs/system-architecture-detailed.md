@@ -9,9 +9,9 @@ The stack is orchestrated by `docker-compose.yml`.
 
 Services:
 
-- `client` (Nginx + built Vite app)
+- `web` (Next.js app)
   - Host port: `3000`
-  - Container port: `80`
+  - Container port: `3000`
   - Depends on: `api`
 - `api` (FastAPI)
   - Host port: `8000`
@@ -487,10 +487,10 @@ Docker build strategy:
   - `libsndfile1`
   - `libpq-dev`
 
-Client serving:
+Web app serving:
 
-- Nginx serves static build at container port `80`
-- Compose maps host `3000 -> 80`
+- Next.js production server listens on container port `3000`
+- Compose maps host `3000 -> 3000`
 
 ## 15) Operational Failure Modes and What Happens
 

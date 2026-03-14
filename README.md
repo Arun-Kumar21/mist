@@ -29,10 +29,10 @@ A self-hosted music streaming platform. Upload audio files and they are transcod
 
 ## How it works
 
-1. The client requests a presigned S3 URL from the upload service and uploads the file directly to S3.
+1. The web app requests a presigned S3 URL from the upload service and uploads the file directly to S3.
 2. The upload service enqueues a Celery task.
 3. The processor worker downloads the file, extracts audio features, generates encrypted HLS variants with FFmpeg, uploads everything to S3, and writes all metadata to Postgres.
-4. The client polls job status until complete, then streams via HLS.js.
+4. The web app polls job status until complete, then streams via HLS.js.
 5. The HLS player fetches segments from S3 and requests the AES key from the API, which requires a valid bearer token.
 
 ![Architecture](mist_arch.png)
@@ -44,7 +44,7 @@ api-service/       FastAPI app — auth, tracks, listening, keys
 upload-service/    FastAPI app — upload flow and job status
 processor/         Celery worker — FFmpeg pipeline and feature extraction
 shared/            Installable Python package — models, controllers, config, auth utils
-client/            Next.js frontend
+web/               Next.js frontend
 docker-compose.yml Orchestrates all services
 ```
 
@@ -84,7 +84,7 @@ CLIENT_URLS=http://localhost:3000
 API_BASE_URL=http://localhost:8000
 ```
 
-Create `client/.env`:
+Create `web/.env`:
 
 ```env
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
@@ -98,7 +98,7 @@ docker compose up --build
 
 This starts:
 
-- Next.js client at `http://localhost:3000`
+- Next.js web app at `http://localhost:3000`
 - API at `http://localhost:8000`
 - Upload service at `http://localhost:8001`
 - Processor worker (no public port)
@@ -142,14 +142,14 @@ celery -A celery_app worker --loglevel=info --concurrency=2
 **Frontend:**
 
 ```bash
-cd client
+cd web
 npm install
 npm run dev
 ```
 
 ## S3 bucket setup
 
-The bucket needs a CORS policy allowing `GET` and `PUT` from your client origin so the browser can upload files and the HLS player can fetch segments.
+The bucket needs a CORS policy allowing `GET` and `PUT` from your web app origin so the browser can upload files and the HLS player can fetch segments.
 
 Example CORS configuration for the bucket:
 
