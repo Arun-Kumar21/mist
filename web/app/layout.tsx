@@ -9,8 +9,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "Mist",
-  description: "A self-hosted music streaming platform. Upload audio files and they are transcoded into AES-128 encrypted HLS streams, served from S3, and playable in the browser with per-user daily listening quotas.",
+  title: "Mist | Enjoy Your Music Anywhere",
+  description: "Mist is a secure, scalable music streaming platform. Upload, stream, and enjoy your music with privacy and seamless playback. Designed for reliability and high-quality listening experiences.",
   icons: {
     icon: "/logo.svg",
     shortcut: "/logo.svg",
