@@ -87,7 +87,7 @@ export default function FeedPage() {
         <div className="grid grid-cols-2 gap-4 max-[359px]:grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {Array.from({ length: 10 }).map((_, index) => (
             <div key={`feed-loading-${index}`} className="space-y-2">
-              <div className="aspect-[16/10] animate-pulse rounded-lg bg-muted" />
+              <div className="aspect-16/10 animate-pulse rounded-lg bg-muted" />
               <div className="h-4 w-4/5 animate-pulse rounded bg-muted" />
             </div>
           ))}

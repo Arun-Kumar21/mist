@@ -63,6 +63,54 @@ def _run_lightweight_migrations():
         "ALTER TABLE tracks ADD COLUMN IF NOT EXISTS home_feature_score INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE tracks ADD COLUMN IF NOT EXISTS cover_image_url TEXT",
         "ALTER TABLE tracks ADD COLUMN IF NOT EXISTS cover_image_key VARCHAR(1000)",
+        "ALTER TABLE audio_features DROP CONSTRAINT IF EXISTS audio_features_track_id_fkey",
+        (
+            "ALTER TABLE audio_features "
+            "ADD CONSTRAINT audio_features_track_id_fkey "
+            "FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE"
+        ),
+        "ALTER TABLE track_embeddings DROP CONSTRAINT IF EXISTS track_embeddings_track_id_fkey",
+        (
+            "ALTER TABLE track_embeddings "
+            "ADD CONSTRAINT track_embeddings_track_id_fkey "
+            "FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE"
+        ),
+        "ALTER TABLE track_encryption_keys DROP CONSTRAINT IF EXISTS track_encryption_keys_track_id_fkey",
+        (
+            "ALTER TABLE track_encryption_keys "
+            "ADD CONSTRAINT track_encryption_keys_track_id_fkey "
+            "FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE"
+        ),
+        "ALTER TABLE processing_jobs DROP CONSTRAINT IF EXISTS processing_jobs_track_id_fkey",
+        (
+            "ALTER TABLE processing_jobs "
+            "ADD CONSTRAINT processing_jobs_track_id_fkey "
+            "FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE"
+        ),
+        "ALTER TABLE track_likes DROP CONSTRAINT IF EXISTS track_likes_track_id_fkey",
+        (
+            "ALTER TABLE track_likes "
+            "ADD CONSTRAINT track_likes_track_id_fkey "
+            "FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE"
+        ),
+        "ALTER TABLE playlist_tracks DROP CONSTRAINT IF EXISTS playlist_tracks_track_id_fkey",
+        (
+            "ALTER TABLE playlist_tracks "
+            "ADD CONSTRAINT playlist_tracks_track_id_fkey "
+            "FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE"
+        ),
+        "ALTER TABLE admin_curated_tracks DROP CONSTRAINT IF EXISTS admin_curated_tracks_track_id_fkey",
+        (
+            "ALTER TABLE admin_curated_tracks "
+            "ADD CONSTRAINT admin_curated_tracks_track_id_fkey "
+            "FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE"
+        ),
+        "ALTER TABLE user_listening_history DROP CONSTRAINT IF EXISTS user_listening_history_track_id_fkey",
+        (
+            "ALTER TABLE user_listening_history "
+            "ADD CONSTRAINT user_listening_history_track_id_fkey "
+            "FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE"
+        ),
     ]
     with engine.begin() as connection:
         for statement in statements:

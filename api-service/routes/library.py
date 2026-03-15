@@ -2,6 +2,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 import logging
+from urllib.parse import urlparse, unquote
 
 from shared.db.controllers import (
     AnalyticsRepository,
@@ -12,10 +13,37 @@ from shared.db.controllers import (
     PlaylistRepository,
     PlaylistTrackRepository,
 )
+from services.s3_service import generate_hls_stream_url, generate_object_public_url, generate_presigned_read_url
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/library", tags=["Library"])
+
+
+def _normalize_track(track: dict) -> dict:
+    if not isinstance(track, dict):
+        return track
+
+    normalized = dict(track)
+    cover_key = normalized.get("cover_image_key")
+    if not cover_key:
+        raw_cover_url = normalized.get("cover_image_url")
+        if isinstance(raw_cover_url, str) and "amazonaws.com/" in raw_cover_url:
+            parsed = urlparse(raw_cover_url)
+            if parsed.path:
+                cover_key = unquote(parsed.path.lstrip("/"))
+
+    if cover_key:
+        try:
+            normalized["cover_image_url"] = generate_presigned_read_url(cover_key, expires_in=86400)
+        except Exception:
+            normalized["cover_image_url"] = generate_object_public_url(cover_key)
+
+    track_id = normalized.get("track_id")
+    if isinstance(track_id, int):
+        normalized["cdn_url"] = generate_hls_stream_url(track_id)
+
+    return normalized
 
 
 def _require_user_uuid(request: Request) -> UUID:
@@ -129,23 +157,26 @@ async def get_personalized_feed(
             track = row.get("track") or {}
             if not isinstance(track.get("track_id"), int):
                 continue
-            liked_seed_tracks.append(track)
-            register_seed(track, weight=2.4 - min(index, 10) * 0.08, source="liked")
+            normalized_track = _normalize_track(track)
+            liked_seed_tracks.append(normalized_track)
+            register_seed(normalized_track, weight=2.4 - min(index, 10) * 0.08, source="liked")
 
         for row in listened_rows:
             track = row.get("track") or {}
             if not isinstance(track.get("track_id"), int):
                 continue
 
+            normalized_track = _normalize_track(track)
+
             play_count = int(row.get("play_count") or 0)
             total_duration = float(row.get("total_duration") or 0.0)
             listened_seed_tracks.append({
-                **track,
+                **normalized_track,
                 "play_count": play_count,
                 "total_duration": total_duration,
             })
             register_seed(
-                track,
+                normalized_track,
                 weight=1.0 + min(play_count, 8) * 0.35 + min(total_duration / 300.0, 1.5),
                 source="listened",
             )
@@ -170,7 +201,7 @@ async def get_personalized_feed(
                 bucket = candidate_map.setdefault(
                     similar_track.track_id,
                     {
-                        "track": similar_track.to_dict(),
+                        "track": _normalize_track(similar_track.to_dict()),
                         "score": 0.0,
                         "seed_track_ids": set(),
                         "reasons": set(),
@@ -213,12 +244,13 @@ async def get_personalized_feed(
         if len(recommendations) < limit:
             fallback_tracks = AnalyticsRepository.get_most_listened_tracks(limit=limit * 2)
             for track in fallback_tracks:
-                track_id = track.get("track_id")
+                normalized_track = _normalize_track(track)
+                track_id = normalized_track.get("track_id")
                 if not isinstance(track_id, int) or track_id in seen_ids:
                     continue
 
                 recommendations.append({
-                    **track,
+                    **normalized_track,
                     "recommendation_score": 0.0,
                     "based_on_track_ids": [],
                     "reasons": ["popular with listeners"],
