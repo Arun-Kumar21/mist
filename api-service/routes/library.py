@@ -4,7 +4,10 @@ from pydantic import BaseModel
 import logging
 
 from shared.db.controllers import (
+    AnalyticsRepository,
+    ListeningHistoryRepository,
     TrackRepository,
+    TrackEmbeddingRepository,
     TrackLikeRepository,
     PlaylistRepository,
     PlaylistTrackRepository,
@@ -88,6 +91,154 @@ async def get_like_status(track_id: int, request: Request):
         raise
     except Exception as e:
         logger.error(f"Error fetching like status for {track_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/feed")
+async def get_personalized_feed(
+    request: Request,
+    limit: int = Query(default=24, ge=1, le=100),
+):
+    try:
+        user_id = _require_user_uuid(request)
+        liked_rows = TrackLikeRepository.get_liked_tracks(user_id, limit=12, offset=0)
+        listened_rows = ListeningHistoryRepository.get_user_top_tracks(user_id, limit=8)
+
+        seed_meta: dict[int, dict] = {}
+        liked_seed_tracks: list[dict] = []
+        listened_seed_tracks: list[dict] = []
+
+        def register_seed(track: dict, weight: float, source: str):
+            track_id = track.get("track_id")
+            if not isinstance(track_id, int):
+                return
+
+            existing = seed_meta.get(track_id)
+            if not existing:
+                seed_meta[track_id] = {
+                    "track": track,
+                    "weight": 0.0,
+                    "sources": set(),
+                }
+                existing = seed_meta[track_id]
+
+            existing["weight"] += weight
+            existing["sources"].add(source)
+
+        for index, row in enumerate(liked_rows):
+            track = row.get("track") or {}
+            if not isinstance(track.get("track_id"), int):
+                continue
+            liked_seed_tracks.append(track)
+            register_seed(track, weight=2.4 - min(index, 10) * 0.08, source="liked")
+
+        for row in listened_rows:
+            track = row.get("track") or {}
+            if not isinstance(track.get("track_id"), int):
+                continue
+
+            play_count = int(row.get("play_count") or 0)
+            total_duration = float(row.get("total_duration") or 0.0)
+            listened_seed_tracks.append({
+                **track,
+                "play_count": play_count,
+                "total_duration": total_duration,
+            })
+            register_seed(
+                track,
+                weight=1.0 + min(play_count, 8) * 0.35 + min(total_duration / 300.0, 1.5),
+                source="listened",
+            )
+
+        candidate_map: dict[int, dict] = {}
+        seed_track_ids = set(seed_meta.keys())
+
+        for seed_track_id, meta in seed_meta.items():
+            similar_tracks = TrackEmbeddingRepository.find_similar_tracks(seed_track_id, limit=min(max(limit // 2, 6), 12))
+
+            for similar_track, distance in similar_tracks:
+                if similar_track.track_id in seed_track_ids:
+                    continue
+
+                similarity = max(0.0, 1.0 - float(distance))
+                if similarity <= 0.05:
+                    continue
+
+                popularity_bonus = min(float(similar_track.listens or 0) / 1000.0, 5.0)
+                score = meta["weight"] * (similarity * 100.0) + popularity_bonus
+
+                bucket = candidate_map.setdefault(
+                    similar_track.track_id,
+                    {
+                        "track": similar_track.to_dict(),
+                        "score": 0.0,
+                        "seed_track_ids": set(),
+                        "reasons": set(),
+                    },
+                )
+                bucket["score"] += score
+                bucket["seed_track_ids"].add(seed_track_id)
+
+                if "liked" in meta["sources"]:
+                    bucket["reasons"].add("based on songs you liked")
+                if "listened" in meta["sources"]:
+                    bucket["reasons"].add("based on your listening history")
+
+        ranked_candidates = sorted(
+            candidate_map.values(),
+            key=lambda item: item["score"],
+            reverse=True,
+        )
+
+        recommendations: list[dict] = []
+        seen_ids: set[int] = set(seed_track_ids)
+
+        for item in ranked_candidates:
+            track = item["track"]
+            track_id = track.get("track_id")
+            if not isinstance(track_id, int) or track_id in seen_ids:
+                continue
+
+            recommendations.append({
+                **track,
+                "recommendation_score": round(float(item["score"]), 2),
+                "based_on_track_ids": sorted(item["seed_track_ids"]),
+                "reasons": sorted(item["reasons"]),
+            })
+            seen_ids.add(track_id)
+
+            if len(recommendations) >= limit:
+                break
+
+        if len(recommendations) < limit:
+            fallback_tracks = AnalyticsRepository.get_most_listened_tracks(limit=limit * 2)
+            for track in fallback_tracks:
+                track_id = track.get("track_id")
+                if not isinstance(track_id, int) or track_id in seen_ids:
+                    continue
+
+                recommendations.append({
+                    **track,
+                    "recommendation_score": 0.0,
+                    "based_on_track_ids": [],
+                    "reasons": ["popular with listeners"],
+                })
+                seen_ids.add(track_id)
+
+                if len(recommendations) >= limit:
+                    break
+
+        return {
+            "success": True,
+            "liked_seed_tracks": liked_seed_tracks,
+            "listened_seed_tracks": listened_seed_tracks,
+            "recommendations": recommendations,
+            "count": len(recommendations),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error building personalized feed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

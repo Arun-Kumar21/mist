@@ -360,7 +360,7 @@ export function PlayerBottomBar() {
 
             <button
               type="button"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/70 hover:bg-muted"
+              className="h-9 w-9 items-center justify-center rounded-full border border-border/70 hover:bg-muted hidden"
               aria-label="Expand player details"
               title="Full player view coming soon"
             >
