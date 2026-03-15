@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { isAxiosError } from "axios"
 import {
@@ -287,7 +288,7 @@ export function PlayerBottomBar() {
   if (!isVisible || !currentTrack) return null
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/70 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
+    <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-zinc-100 backdrop-blur dark:bg-zinc-900 supports-backdrop-filter:bg-zinc-100/90 dark:supports-backdrop-filter:bg-zinc-900/90">
       <audio
         ref={audioRef}
         onPlay={() => setIsPlaying(true)}
@@ -368,74 +369,85 @@ export function PlayerBottomBar() {
           </div>
         </div>
 
-        <div className="mt-2 space-y-2 sm:mt-3">
-          <div className="flex items-center justify-center gap-2 sm:gap-2.5">
-            <button
-              type="button"
-              onClick={() => {
-                handlePreviousTrack()
-              }}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/70 hover:bg-muted"
-              aria-label="Previous track"
-            >
-              <SkipBack className="h-4 w-4" />
-            </button>
+        {isAuthenticated ? (
+          <div className="mt-2 space-y-2 sm:mt-3">
+            <div className="flex items-center justify-center gap-2 sm:gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  handlePreviousTrack()
+                }}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/70 hover:bg-muted"
+                aria-label="Previous track"
+              >
+                <SkipBack className="h-4 w-4" />
+              </button>
 
-            <button
-              type="button"
-              onClick={togglePlay}
-              disabled={!hlsLoaded || loadingTrack || !!playerError}
-              className={cn(
-                "inline-flex h-10 w-10 items-center justify-center rounded-full text-primary-foreground",
-                !hlsLoaded || loadingTrack || !!playerError
-                  ? "cursor-not-allowed bg-muted text-muted-foreground"
-                  : "bg-primary hover:opacity-90"
-              )}
-              aria-label={isPlaying ? "Pause" : "Play"}
-            >
-              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" fill="currentColor" />}
-            </button>
+              <button
+                type="button"
+                onClick={togglePlay}
+                disabled={!hlsLoaded || loadingTrack || !!playerError}
+                className={cn(
+                  "inline-flex h-10 w-10 items-center justify-center rounded-full text-primary-foreground",
+                  !hlsLoaded || loadingTrack || !!playerError
+                    ? "cursor-not-allowed bg-muted text-muted-foreground"
+                    : "bg-primary hover:opacity-90"
+                )}
+                aria-label={isPlaying ? "Pause" : "Play"}
+              >
+                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" fill="currentColor" />}
+              </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                handleNextTrack()
-              }}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/70 hover:bg-muted"
-              aria-label="Next track"
-            >
-              <SkipForward className="h-4 w-4" />
-            </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleNextTrack()
+                }}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/70 hover:bg-muted"
+                aria-label="Next track"
+              >
+                <SkipForward className="h-4 w-4" />
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setIsLoop((v) => !v)}
-              className={cn(
-                "inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/70 sm:inline-flex",
-                isLoop ? "bg-primary/15 text-primary" : "hover:bg-muted"
-              )}
-              aria-label="Toggle loop"
-            >
-              <Repeat className="h-4 w-4" />
-            </button>
+              <button
+                type="button"
+                onClick={() => setIsLoop((v) => !v)}
+                className={cn(
+                  "inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/70 sm:inline-flex",
+                  isLoop ? "bg-primary/15 text-primary" : "hover:bg-muted"
+                )}
+                aria-label="Toggle loop"
+              >
+                <Repeat className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-[42px_1fr_42px] items-center gap-2 sm:gap-3">
+              <span className="text-[11px] text-muted-foreground tabular-nums">{formatTime(currentTime)}</span>
+              <Slider
+                min={0}
+                max={100}
+                step={0.1}
+                value={[progress]}
+                onValueChange={(values) => onSeek(values[0] ?? 0)}
+                className="w-full"
+                aria-label="Seek track"
+              />
+              <span className="text-right text-[11px] text-muted-foreground tabular-nums">
+                {formatTime(duration)}
+              </span>
+            </div>
           </div>
-
-          <div className="grid grid-cols-[42px_1fr_42px] items-center gap-2 sm:gap-3">
-            <span className="text-[11px] text-muted-foreground tabular-nums">{formatTime(currentTime)}</span>
-            <Slider
-              min={0}
-              max={100}
-              step={0.1}
-              value={[progress]}
-              onValueChange={(values) => onSeek(values[0] ?? 0)}
-              className="w-full"
-              aria-label="Seek track"
-            />
-            <span className="text-right text-[11px] text-muted-foreground tabular-nums">
-              {formatTime(duration)}
-            </span>
+        ) : (
+          <div className="mt-2 flex items-center justify-center sm:mt-3">
+            <Link
+              href="/login"
+              className="rounded-full border border-border/70 bg-muted/50 px-3 py-1.5 text-xs font-medium tracking-wide text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            >
+              Login to listen
+            </Link>
           </div>
-        </div>
+        )}
       </div>
 
       {loadingTrack ? (

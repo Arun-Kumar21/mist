@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { LogOut, UserCog } from "lucide-react"
+import { LayoutDashboard, LogOut, UserCog } from "lucide-react"
 
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { Logo } from "@/components/logo"
@@ -67,6 +67,15 @@ export function AppNavbar() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          {mounted && isAuthenticated && user?.role === "admin" && (
+            <Link
+              href="/admin/dashboard"
+              className="hidden items-center gap-1.5 rounded-md border border-border/60 bg-muted/40 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex"
+            >
+              <LayoutDashboard className="h-3.5 w-3.5" />
+              Admin
+            </Link>
+          )}
           <SearchCommand />
           <ModeToggle />
           {showAuthedUi ? (
