@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text
+from sqlalchemy import Column, Integer, String, Float, DateTime, Text, Boolean
 from datetime import datetime, UTC
 from sqlalchemy.orm import relationship
 from shared.db.database import Base
@@ -17,6 +17,8 @@ class Track(Base):
     duration_sec = Column(Float)
     listens = Column(Integer)
     interest = Column(Integer)
+    is_featured_home = Column(Boolean, default=False, nullable=False, index=True)
+    home_feature_score = Column(Integer, default=0, nullable=False, index=True)
     date_created = Column(String(50))
     processing_status = Column(String(50), default='success')
     created_at = Column(DateTime, default=datetime.now(UTC))
@@ -39,6 +41,8 @@ class Track(Base):
             'duration_sec': self.duration_sec,
             'listens': self.listens,
             'interest': self.interest,
+            'is_featured_home': self.is_featured_home,
+            'home_feature_score': self.home_feature_score,
             'date_created': self.date_created,
             'processing_status': self.processing_status,
             'created_at': self.created_at.isoformat() if self.created_at else None,

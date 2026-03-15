@@ -141,6 +141,8 @@ class UpdateTrackRequest(BaseModel):
     artist_name: Optional[str] = None
     album_title: Optional[str] = None
     genre_top: Optional[str] = None
+    is_featured_home: Optional[bool] = None
+    home_feature_score: Optional[int] = None
 
 
 @router.put("/{track_id}")

@@ -26,6 +26,8 @@ def is_public_route(path: str, method: str = "GET") -> bool:
     if method == "GET":
         if path == "/api/v1/banners":
             return True
+        if path.startswith("/api/v1/home"):
+            return True
         if path == "/api/v1/tracks" or re.match(r'^/api/v1/tracks\?', path):
             return True
         if re.match(r'^/api/v1/tracks/\d+$', path):

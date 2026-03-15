@@ -1,6 +1,6 @@
 import os
 from contextlib import contextmanager
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from sqlalchemy.pool import QueuePool
 from dotenv import load_dotenv
@@ -52,4 +52,16 @@ def get_db_session():
 
 def create_tables():
     Base.metadata.create_all(engine)
+    _run_lightweight_migrations()
     logger.info("Database tables created")
+
+
+def _run_lightweight_migrations():
+    """Apply small additive schema updates for environments without migrations."""
+    statements = [
+        "ALTER TABLE tracks ADD COLUMN IF NOT EXISTS is_featured_home BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE tracks ADD COLUMN IF NOT EXISTS home_feature_score INTEGER NOT NULL DEFAULT 0",
+    ]
+    with engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))

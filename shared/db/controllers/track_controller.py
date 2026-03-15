@@ -1,5 +1,5 @@
 from datetime import datetime, UTC
-from sqlalchemy import or_
+from sqlalchemy import or_, desc
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from typing import Optional, List, Dict, Any
 import logging
@@ -115,4 +115,45 @@ class TrackRepository:
                 return True
         except SQLAlchemyError as e:
             logger.error(f"Error deleting track {track_id}: {e}")
+            raise
+
+    @staticmethod
+    def increment_play_metrics(track_id: int, listens_increment: int = 1, feature_score_increment: int = 1) -> bool:
+        try:
+            with get_db_session() as session:
+                track = session.query(Track).filter(Track.track_id == track_id).first()
+                if not track:
+                    return False
+                track.listens = (track.listens or 0) + max(0, listens_increment)
+                track.home_feature_score = (track.home_feature_score or 0) + max(0, feature_score_increment)
+                track.updated_at = datetime.now(UTC)
+                return True
+        except SQLAlchemyError as e:
+            logger.error(f"Error incrementing play metrics for track {track_id}: {e}")
+            raise
+
+    @staticmethod
+    def get_most_listened(limit: int = 10) -> List[Track]:
+        try:
+            with get_db_session() as session:
+                tracks = session.query(Track).order_by(desc(Track.listens)).limit(limit).all()
+                for track in tracks:
+                    session.expunge(track)
+                return tracks
+        except SQLAlchemyError as e:
+            logger.error(f"Error fetching most listened tracks: {e}")
+            raise
+
+    @staticmethod
+    def get_featured_for_home(limit: int = 10) -> List[Track]:
+        try:
+            with get_db_session() as session:
+                tracks = session.query(Track).filter(
+                    Track.is_featured_home == True  # noqa: E712
+                ).order_by(desc(Track.home_feature_score), desc(Track.listens)).limit(limit).all()
+                for track in tracks:
+                    session.expunge(track)
+                return tracks
+        except SQLAlchemyError as e:
+            logger.error(f"Error fetching featured home tracks: {e}")
             raise

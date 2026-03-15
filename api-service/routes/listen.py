@@ -49,6 +49,7 @@ async def start_listening(req: ListenStartRequest, request: Request):
 
         session_id = ListeningService.start_listening_session(user_id, req.track_id, ip_address)
         ListeningService.increment_track_started(user_id, ip_address)
+        TrackRepository.increment_play_metrics(req.track_id, listens_increment=1, feature_score_increment=1)
 
         return {"success": True, "session_id": session_id, "track_id": req.track_id, "quota": quota_info}
 

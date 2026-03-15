@@ -9,7 +9,10 @@ import { cn } from "@/lib/utils"
 export function HomeBanner() {
   const router = useRouter()
   const [banners, setBanners] = useState<Banner[]>([])
-  const [current, setCurrent] = useState(0)
+  // trackIndex: 0 = clone-of-last, 1..N = real slides, N+1 = clone-of-first
+  const [trackIndex, setTrackIndex] = useState(1)
+  const [animated, setAnimated] = useState(true)
+  const [isTransitioning, setIsTransitioning] = useState(false)
   const [loading, setLoading] = useState(true)
   const [imageFailed, setImageFailed] = useState(false)
 
@@ -20,24 +23,57 @@ export function HomeBanner() {
       .finally(() => setLoading(false))
   }, [])
 
-  const prev = useCallback(() => {
-    setCurrent((i) => (i === 0 ? banners.length - 1 : i - 1))
-  }, [banners.length])
+  const n = banners.length
+
+  // After the CSS transition ends, silently jump to the real counterpart slide
+  const handleTransitionEnd = useCallback(() => {
+    if (trackIndex === n + 1) {
+      setAnimated(false)
+      setTrackIndex(1)
+    } else if (trackIndex === 0) {
+      setAnimated(false)
+      setTrackIndex(n)
+    }
+    setIsTransitioning(false)
+  }, [trackIndex, n])
+
+  // Re-enable transition on the next two frames after a silent jump
+  useEffect(() => {
+    if (!animated) {
+      const id = requestAnimationFrame(() =>
+        requestAnimationFrame(() => setAnimated(true))
+      )
+      return () => cancelAnimationFrame(id)
+    }
+  }, [animated])
 
   const next = useCallback(() => {
-    setCurrent((i) => (i === banners.length - 1 ? 0 : i + 1))
-  }, [banners.length])
+    if (isTransitioning) return
+    setIsTransitioning(true)
+    setAnimated(true)
+    setTrackIndex((i) => i + 1)
+  }, [isTransitioning])
+
+  const prev = useCallback(() => {
+    if (isTransitioning) return
+    setIsTransitioning(true)
+    setAnimated(true)
+    setTrackIndex((i) => i - 1)
+  }, [isTransitioning])
+
+  const goTo = useCallback((logicalIndex: number) => {
+    if (isTransitioning) return
+    setIsTransitioning(true)
+    setAnimated(true)
+    setTrackIndex(logicalIndex + 1)
+  }, [isTransitioning])
 
   // Auto-advance
   useEffect(() => {
-    if (banners.length <= 1) return
+    if (n <= 1) return
     const timer = setInterval(next, 6000)
     return () => clearInterval(timer)
-  }, [banners.length, next])
-
-  useEffect(() => {
-    setImageFailed(false)
-  }, [current])
+  }, [n, next])
 
   if (loading) {
     return (
@@ -47,32 +83,50 @@ export function HomeBanner() {
 
   if (!banners.length) return null
 
-  const banner = banners[current]
+  // Track layout: [clone-last, real-0, real-1, …, real-N-1, clone-first]
+  const slides: Banner[] = [banners[n - 1], ...banners, banners[0]]
+  const slideCount = slides.length
 
-  const inner = (
-    <div
-      className="relative w-full overflow-hidden rounded-lg"
-      style={{ aspectRatio: "21/7" }}
-      onClick={() => {
-        if (banner.link_url) {
-          router.push(banner.link_url)
-        }
-      }}
-    >
-      {banner.image_url && !imageFailed ? (
-        <img
-          src={banner.image_url}
-          alt={banner.title ?? "Banner"}
-          className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700"
-          loading="eager"
-          onError={() => setImageFailed(true)}
-        />
-      ) : (
-        <div className="absolute inset-0 bg-muted" />
-      )}
+  // Map trackIndex back to a 0-based logical index for the dots
+  const dotActive = Math.max(0, Math.min(n - 1, trackIndex - 1))
+
+  return (
+    <div className="relative w-full overflow-hidden rounded-lg" style={{ aspectRatio: "21/7" }}>
+
+      {/* Sliding track */}
+      <div
+        className={cn("flex h-full", animated && "transition-transform duration-700 ease-in-out")}
+        style={{
+          width: `${slideCount * 100}%`,
+          transform: `translateX(-${(trackIndex / slideCount) * 100}%)`,
+        }}
+        onTransitionEnd={handleTransitionEnd}
+      >
+        {slides.map((b, i) => (
+          <div
+            key={i}
+            className="relative h-full shrink-0"
+            style={{ width: `${100 / slideCount}%` }}
+            onClick={() => { if (b.link_url) router.push(b.link_url) }}
+          >
+            {b.image_url && !imageFailed ? (
+              <img
+                src={b.image_url}
+                alt={b.title ?? "Banner"}
+                className="absolute inset-0 h-full w-full object-cover "
+                draggable={false}
+                loading={i === 1 ? "eager" : "lazy"}
+                onError={() => setImageFailed(true)}
+              />
+            ) : (
+              <div className="absolute inset-0 bg-muted" />
+            )}
+          </div>
+        ))}
+      </div>
 
       {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
+      <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-black/55 via-black/15 to-transparent" />
 
       {/* Text content disabled: banner artwork already contains typography.
       {(banner.title || banner.subtitle) && (
@@ -91,14 +145,11 @@ export function HomeBanner() {
       )}
       */}
 
+      {/* Trending CTA — bottom left */}
       <button
         type="button"
-        onClick={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          router.push("/explore")
-        }}
-        className="absolute cursor-pointer bottom-4 left-4 z-10 inline-flex items-center gap-2 rounded-md bg-black/65 px-3 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-black/80"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push("/trending") }}
+        className="absolute bottom-4 left-4 z-10 inline-flex cursor-pointer items-center gap-2 rounded-md bg-black/65 px-3 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-black/80"
         aria-label="Go to trending"
       >
         <ListMusic className="h-4 w-4" />
@@ -106,35 +157,38 @@ export function HomeBanner() {
       </button>
 
       {/* Navigation arrows */}
-      {banners.length > 1 && (
+      {n > 1 && (
         <>
           <button
-            onClick={(e) => { e.preventDefault(); prev() }}
-            className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-1.5 text-white backdrop-blur-sm transition hover:bg-black/60"
+            type="button"
+            onClick={(e) => { e.stopPropagation(); prev() }}
+            className="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/40 p-1.5 text-white backdrop-blur-sm transition hover:bg-black/60"
             aria-label="Previous banner"
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeft className="h-5 w-5 cursor-pointer"/>
           </button>
           <button
-            onClick={(e) => { e.preventDefault(); next() }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-1.5 text-white backdrop-blur-sm transition hover:bg-black/60"
+            type="button"
+            onClick={(e) => { e.stopPropagation(); next() }}
+            className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/40 p-1.5 text-white backdrop-blur-sm transition hover:bg-black/60"
             aria-label="Next banner"
           >
-            <ChevronRight className="h-5 w-5" />
+            <ChevronRight className="h-5 w-5 cursor-pointer " />
           </button>
         </>
       )}
 
       {/* Dot indicators */}
-      {banners.length > 1 && (
-        <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
+      {n > 1 && (
+        <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5">
           {banners.map((_, i) => (
             <button
               key={i}
-              onClick={(e) => { e.preventDefault(); setCurrent(i) }}
+              type="button"
+              onClick={(e) => { e.stopPropagation(); goTo(i) }}
               className={cn(
-                "h-1.5 rounded-full transition-all",
-                i === current ? "w-5 bg-white" : "w-1.5 bg-white/40"
+                "h-1.5 rounded-full bg-white transition-all duration-500 ease-in-out",
+                i === dotActive ? "w-6 opacity-100" : "w-1.5 opacity-40"
               )}
               aria-label={`Go to banner ${i + 1}`}
             />
@@ -143,6 +197,4 @@ export function HomeBanner() {
       )}
     </div>
   )
-
-  return inner
 }

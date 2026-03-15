@@ -13,6 +13,9 @@ from routes.tracks import router as track_router
 from routes.keys import router as key_router
 from routes.listen import router as listen_router
 from routes.banner import router as banner_router
+from routes.home import router as home_router
+from routes.curation import router as curation_router
+from routes.library import router as library_router
 from middleware import AuthMiddleware
 
 settings.validate()
@@ -59,6 +62,9 @@ app.include_router(listen_router, prefix=API_PREFIX)
 app.include_router(key_router, prefix=API_PREFIX)
 app.include_router(key_router, prefix="/api")
 app.include_router(banner_router, prefix=API_PREFIX)
+app.include_router(home_router, prefix=API_PREFIX)
+app.include_router(curation_router, prefix=API_PREFIX)
+app.include_router(library_router, prefix=API_PREFIX)
 
 if __name__ == "__main__":
     import uvicorn
