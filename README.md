@@ -78,7 +78,6 @@ AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_REGION=us-east-1
 S3_BUCKET_NAME=your-bucket-name
 SECRET_KEY=a-long-random-string
-JWT_SECRET_KEY=another-long-random-string
 REDIS_URL=redis://redis:6379/0
 CLIENT_URLS=http://localhost:3000
 API_BASE_URL=http://localhost:8000

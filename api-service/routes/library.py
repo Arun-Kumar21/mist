@@ -276,15 +276,24 @@ async def get_my_playlists(request: Request):
 @router.get("/playlists/{playlist_id}")
 async def get_playlist(playlist_id: UUID, request: Request):
     try:
-        user_id = _require_user_uuid(request)
         playlist = PlaylistRepository.get_by_id(playlist_id)
         if not playlist:
             raise HTTPException(status_code=404, detail="Playlist not found")
-        if str(playlist.user_id) != str(user_id):
+
+        user = getattr(request.state, 'user', None)
+        user_id = getattr(user, 'user_id', None)
+        is_owner = bool(user_id and str(playlist.user_id) == str(user_id))
+
+        if not is_owner and not playlist.is_public:
             raise HTTPException(status_code=403, detail="Forbidden")
 
         tracks = PlaylistTrackRepository.get_playlist_tracks(playlist_id)
-        return {"success": True, "playlist": playlist.to_dict(), "tracks": tracks}
+        return {
+            "success": True,
+            "playlist": playlist.to_dict(),
+            "tracks": tracks,
+            "is_owner": is_owner,
+        }
     except HTTPException:
         raise
     except Exception as e:

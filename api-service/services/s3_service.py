@@ -17,6 +17,8 @@ S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
 if not S3_BUCKET_NAME:
     raise ValueError("S3_BUCKET_NAME not set")
 
+_BUCKET_PUBLIC_BASE_URL = None
+
 
 def _get_s3_client():
     return boto3.client(
@@ -27,9 +29,32 @@ def _get_s3_client():
     )
 
 
+def _get_bucket_public_base_url() -> str:
+    global _BUCKET_PUBLIC_BASE_URL
+    if _BUCKET_PUBLIC_BASE_URL:
+        return _BUCKET_PUBLIC_BASE_URL
+
+    # Resolve actual bucket region to avoid constructing invalid public URLs.
+    s3_client = _get_s3_client()
+    try:
+        location = s3_client.get_bucket_location(Bucket=S3_BUCKET_NAME).get('LocationConstraint')
+    except ClientError as error:
+        logger.warning(f"Could not resolve bucket location for {S3_BUCKET_NAME}: {error}")
+        location = AWS_REGION
+    if location:
+        _BUCKET_PUBLIC_BASE_URL = f"https://{S3_BUCKET_NAME}.s3.{location}.amazonaws.com"
+    else:
+        _BUCKET_PUBLIC_BASE_URL = f"https://{S3_BUCKET_NAME}.s3.amazonaws.com"
+    return _BUCKET_PUBLIC_BASE_URL
+
+
+def generate_object_public_url(s3_key: str) -> str:
+    return f"{_get_bucket_public_base_url()}/{s3_key}"
+
+
 def generate_hls_stream_url(track_id: int) -> str:
     s3_key = f"audio/hls/{track_id}/master.m3u8"
-    return f"https://{S3_BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{s3_key}"
+    return generate_object_public_url(s3_key)
 
 
 def delete_track_files(track_id: int):
@@ -92,7 +117,7 @@ def upload_banner_image(file_bytes: bytes, s3_key: str, content_type: str) -> st
                 )
             else:
                 raise
-        url = f"https://{S3_BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{s3_key}"
+        url = generate_object_public_url(s3_key)
         logger.info(f"Uploaded banner image to {s3_key}")
         return url
     except ClientError as e:
@@ -122,7 +147,7 @@ def upload_track_cover_image(file_bytes: bytes, s3_key: str, content_type: str) 
             ContentType=content_type,
             CacheControl='public, max-age=86400',
         )
-        url = f"https://{S3_BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{s3_key}"
+        url = generate_object_public_url(s3_key)
         logger.info(f"Uploaded track cover image to {s3_key}")
         return url
     except ClientError as e:

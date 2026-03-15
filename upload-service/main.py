@@ -10,6 +10,11 @@ import os
 load_dotenv()
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+
+# Prevent AWS SDK debug traces from overwhelming service logs.
+for noisy_logger in ("boto3", "botocore", "s3transfer", "urllib3"):
+    logging.getLogger(noisy_logger).setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["30/minute"])

@@ -21,6 +21,10 @@ from middleware import AuthMiddleware
 settings.validate()
 
 logging.basicConfig(level=settings.LOG_LEVEL)
+
+for noisy_logger in ("boto3", "botocore", "s3transfer", "urllib3"):
+    logging.getLogger(noisy_logger).setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])

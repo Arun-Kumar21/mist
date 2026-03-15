@@ -4,6 +4,17 @@ import { useEffect, useState } from "react"
 import type { RefObject } from "react"
 import { getAuthToken } from "@/lib/api/auth"
 
+function shouldAttachAuth(url: string): boolean {
+  try {
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1"
+    const apiOrigin = new URL(apiBase).origin
+    const resolved = new URL(url, window.location.origin)
+    return resolved.origin === apiOrigin || resolved.origin === window.location.origin
+  } catch {
+    return false
+  }
+}
+
 export function useHLSPlayer(streamUrl: string | null, audioRef: RefObject<HTMLAudioElement | null>) {
   const [hlsLoaded, setHlsLoaded] = useState(false)
   const [hlsError, setHlsError] = useState(false)
@@ -32,19 +43,20 @@ export function useHLSPlayer(streamUrl: string | null, audioRef: RefObject<HTMLA
           const hls = new Hls({
             enableWorker: true,
             lowLatencyMode: false,
-            xhrSetup: (xhr) => {
+            xhrSetup: (xhr, url) => {
               const token = getAuthToken()
-              if (token) {
+              if (token && url && shouldAttachAuth(url)) {
                 xhr.setRequestHeader("Authorization", `Bearer ${token}`)
               }
             },
             fetchSetup: (context, initParams) => {
               const token = getAuthToken()
+              const attachAuth = token && shouldAttachAuth(context.url)
               return new Request(context.url, {
                 ...initParams,
                 headers: {
                   ...(initParams?.headers || {}),
-                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                  ...(attachAuth ? { Authorization: `Bearer ${token}` } : {}),
                 },
               })
             },

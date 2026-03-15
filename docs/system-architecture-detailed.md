@@ -591,7 +591,7 @@ Delete path (track deletion):
 Primary env vars in use:
 
 - Database: `DATABASE_URL`
-- Auth: `SECRET_KEY`, `JWT_SECRET_KEY` (JWT helper currently uses `SECRET_KEY`)
+- Auth: `SECRET_KEY` (JWT helper uses `SECRET_KEY`)
 - AWS: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET_NAME`
 - Queue: `REDIS_URL`
 - Client/API origins: `CLIENT_URLS`
@@ -628,7 +628,7 @@ Web app serving:
 - `ListeningService.get_user_quota_limit` currently returns free tier for all roles.
 - Upload route accepts `filesize` but does not enforce against presigned POST limit in code path (S3 presigned policy enforces up to 50 MB).
 - API route config marks `/api/v1/upload` as admin path, but upload operations are handled by separate upload service with its own auth checks.
-- `JWT_SECRET_KEY` exists in settings, while auth helper directly reads `SECRET_KEY`; keep these aligned in deployment envs.
+- Use a single `SECRET_KEY` value across all services handling JWT generation and verification.
 
 ## 17) Request/Processing Sequence (Concrete)
 

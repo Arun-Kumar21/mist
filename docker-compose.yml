@@ -62,6 +62,8 @@ services:
       - ./.env
     environment:
       - REDIS_URL=redis://redis:6379/0
+      - API_BASE_URL=${API_BASE_URL:-http://localhost:8000}
+      - HLS_KEY_BASE_URL=${HLS_KEY_BASE_URL:-http://localhost:8000}
     depends_on:
       redis:
         condition: service_healthy

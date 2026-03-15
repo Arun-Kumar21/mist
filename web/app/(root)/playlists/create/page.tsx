@@ -17,6 +17,7 @@ export default function CreatePlaylistPage() {
 
   const [name, setName] = React.useState("")
   const [description, setDescription] = React.useState("")
+  const [isPublic, setIsPublic] = React.useState(false)
   const [query, setQuery] = React.useState("")
   const [searching, setSearching] = React.useState(false)
   const [results, setResults] = React.useState<TrackSearchResult[]>([])
@@ -80,7 +81,7 @@ export default function CreatePlaylistPage() {
       const playlist = await createPlaylist({
         name: trimmedName,
         description: description.trim() || undefined,
-        is_public: false,
+        is_public: isPublic,
       })
 
       for (const track of selectedTracks) {
@@ -147,6 +148,19 @@ export default function CreatePlaylistPage() {
               placeholder="Songs I keep replaying this week"
               maxLength={240}
             />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              id="playlist-public"
+              type="checkbox"
+              checked={isPublic}
+              onChange={(event) => setIsPublic(event.target.checked)}
+              className="h-4 w-4 cursor-pointer"
+            />
+            <Label htmlFor="playlist-public" className="cursor-pointer text-sm text-muted-foreground">
+              Make playlist public
+            </Label>
           </div>
 
           <Button onClick={handleCreate} disabled={submitting || !name.trim()} className="gap-2">

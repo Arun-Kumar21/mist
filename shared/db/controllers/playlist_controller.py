@@ -1,6 +1,7 @@
 from datetime import datetime, UTC
 from typing import Optional, List, Dict, Any
 from uuid import UUID
+from sqlalchemy import func, desc
 
 from shared.db.database import get_db_session
 from shared.db.models.playlist import Playlist, PlaylistTrack
@@ -33,6 +34,42 @@ class PlaylistRepository:
             for row in rows:
                 session.expunge(row)
             return rows
+
+    @staticmethod
+    def get_public_popular_playlists(limit: int = 10) -> List[Dict[str, Any]]:
+        with get_db_session() as session:
+            rows = session.query(
+                Playlist,
+                func.coalesce(func.sum(Track.listens), 0).label("total_listens"),
+                func.count(PlaylistTrack.id).label("track_count"),
+                func.max(Track.cover_image_url).label("cover_image_url"),
+                func.max(Track.cover_image_key).label("cover_image_key"),
+            ).outerjoin(
+                PlaylistTrack,
+                PlaylistTrack.playlist_id == Playlist.playlist_id,
+            ).outerjoin(
+                Track,
+                Track.track_id == PlaylistTrack.track_id,
+            ).filter(
+                Playlist.is_public == True  # noqa: E712
+            ).group_by(
+                Playlist.playlist_id,
+            ).order_by(
+                desc("total_listens"),
+                desc("track_count"),
+                desc(Playlist.updated_at),
+            ).limit(limit).all()
+
+            return [
+                {
+                    "playlist": playlist.to_dict(),
+                    "total_listens": int(total_listens or 0),
+                    "track_count": int(track_count or 0),
+                    "cover_image_url": cover_image_url,
+                    "cover_image_key": cover_image_key,
+                }
+                for playlist, total_listens, track_count, cover_image_url, cover_image_key in rows
+            ]
 
     @staticmethod
     def update(playlist_id: UUID, user_id: UUID, update_data: Dict[str, Any]) -> bool:

@@ -1,23 +1,78 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { getHomeSections, type HomeTrack } from "@/lib/api/home"
 import { TrackCard } from "@/components/track-card"
 import { usePlayerStore } from "@/lib/stores/player-store"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { getTrackLikeStatus, likeTrack, unlikeTrack } from "@/lib/api/player"
 import { useTrackLikesStore } from "@/lib/stores/track-likes-store"
+import { Music2 } from "lucide-react"
 
 type HomeSectionsState = {
   popularSongs: HomeTrack[]
   mostListened: HomeTrack[]
   topPick: HomeTrack[]
+  popularPlaylists: Array<{
+    playlist: {
+      playlist_id: string
+      name: string
+      description: string | null
+      is_public: boolean
+    }
+    total_listens: number
+    track_count: number
+    cover_image_url: string | null
+  }>
 }
 
 const initialState: HomeSectionsState = {
   popularSongs: [],
   mostListened: [],
   topPick: [],
+  popularPlaylists: [],
+}
+
+function PlaylistRow({
+  playlists,
+}: {
+  playlists: HomeSectionsState["popularPlaylists"]
+}) {
+  if (!playlists.length) return null
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-lg font-semibold tracking-tight">Popular Playlists</h2>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {playlists.map((entry) => (
+          <Link
+            key={entry.playlist.playlist_id}
+            href={`/playlists/${entry.playlist.playlist_id}`}
+            className="group rounded-xl border border-border/70 bg-card/70 p-3 transition-colors hover:bg-card"
+          >
+            <div className="relative mb-3 aspect-16/10 overflow-hidden rounded-lg bg-muted">
+              {entry.cover_image_url ? (
+                <img
+                  src={entry.cover_image_url}
+                  alt={entry.playlist.name}
+                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center">
+                  <Music2 className="h-6 w-6 text-muted-foreground" />
+                </div>
+              )}
+            </div>
+            <p className="truncate text-sm font-medium text-foreground">{entry.playlist.name}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {entry.track_count} songs • {entry.total_listens.toLocaleString()} listens
+            </p>
+          </Link>
+        ))}
+      </div>
+    </section>
+  )
 }
 
 function TrackRow({ title, tracks }: { title: string; tracks: HomeTrack[] }) {
@@ -139,6 +194,7 @@ export function HomeTrackSections() {
       <TrackRow title="Popular Songs" tracks={data.popularSongs} />
       <TrackRow title="Most Listened" tracks={data.mostListened} />
       <TrackRow title="Top Pick" tracks={data.topPick} />
+      <PlaylistRow playlists={data.popularPlaylists} />
     </div>
   )
 }

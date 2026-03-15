@@ -4,11 +4,14 @@ from typing import Optional
 import os
 import logging
 import uuid
+from urllib.parse import urlparse, unquote
 
 from shared.db.controllers import TrackRepository, TrackEmbeddingRepository
 from shared.db.controllers.analytics_controller import AnalyticsRepository
 from services.s3_service import (
     generate_hls_stream_url,
+    generate_presigned_read_url,
+    generate_object_public_url,
     delete_track_files,
     upload_track_cover_image,
     delete_track_cover_image,
@@ -26,6 +29,27 @@ ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/avif"}
 MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB
 
 
+def _serialize_track(track):
+    payload = track.to_dict()
+
+    cover_key = payload.get("cover_image_key")
+    if not cover_key:
+        raw_cover_url = payload.get("cover_image_url")
+        if isinstance(raw_cover_url, str) and "amazonaws.com/" in raw_cover_url:
+            parsed = urlparse(raw_cover_url)
+            if parsed.path:
+                cover_key = unquote(parsed.path.lstrip("/"))
+
+    if cover_key:
+        try:
+            payload["cover_image_url"] = generate_presigned_read_url(cover_key, expires_in=86400)
+        except Exception:
+            payload["cover_image_url"] = generate_object_public_url(cover_key)
+
+    payload["cdn_url"] = generate_hls_stream_url(track.track_id)
+    return payload
+
+
 @router.get("")
 async def get_tracks(
     limit: int = Query(default=20, ge=1, le=100),
@@ -39,7 +63,7 @@ async def get_tracks(
             tracks = TrackRepository.filter_by_genre(genre, limit, actual_offset)
         else:
             tracks = TrackRepository.get_all(limit, actual_offset)
-        return {"success": True, "count": len(tracks), "tracks": [t.to_dict() for t in tracks]}
+        return {"success": True, "count": len(tracks), "tracks": [_serialize_track(t) for t in tracks]}
     except Exception as e:
         logger.error(f"Error fetching tracks: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -52,7 +76,7 @@ async def search_tracks(
 ):
     try:
         tracks = TrackRepository.search(q, limit)
-        return {"success": True, "query": q, "count": len(tracks), "tracks": [t.to_dict() for t in tracks]}
+        return {"success": True, "query": q, "count": len(tracks), "tracks": [_serialize_track(t) for t in tracks]}
     except Exception as e:
         logger.error(f"Error searching tracks: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -74,7 +98,7 @@ async def get_track_by_id(track_id: int):
         track = TrackRepository.get_by_id(track_id)
         if not track:
             raise HTTPException(status_code=404, detail="Track not found")
-        return {"success": True, "track": track.to_dict()}
+        return {"success": True, "track": _serialize_track(track)}
     except HTTPException:
         raise
     except Exception as e:
@@ -106,8 +130,8 @@ async def get_stream_info(track_id: int, request: Request):
         if not track.cdn_url:
             raise HTTPException(status_code=404, detail="Stream not available")
 
-        # Prefer persisted CDN URL from processing pipeline; fallback to reconstructed URL.
-        stream_url = track.cdn_url or generate_hls_stream_url(track_id)
+        # Always compute stream URL to avoid stale persisted URLs with wrong region/host.
+        stream_url = generate_hls_stream_url(track_id)
         return {
             "success": True,
             "trackId": track.track_id,
@@ -165,7 +189,8 @@ async def update_track(track_id: int, req: UpdateTrackRequest, request: Request)
         if not update_data:
             raise HTTPException(status_code=400, detail="No fields to update")
         TrackRepository.update(track_id, update_data)
-        return {"success": True, "track": TrackRepository.get_by_id(track_id).to_dict()}
+        updated = TrackRepository.get_by_id(track_id)
+        return {"success": True, "track": _serialize_track(updated) if updated else None}
     except HTTPException:
         raise
     except Exception as e:
@@ -230,7 +255,7 @@ async def upload_track_cover(track_id: int, request: Request, image: UploadFile 
                 logger.warning(f"Could not delete old track cover image {old_key}: {e}")
 
         updated = TrackRepository.get_by_id(track_id)
-        return {"success": True, "track": updated.to_dict() if updated else None}
+        return {"success": True, "track": _serialize_track(updated) if updated else None}
     except HTTPException:
         raise
     except Exception as e:

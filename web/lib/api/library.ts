@@ -86,6 +86,12 @@ export type PlaylistTrackRow = {
   track: TrackListItem
 }
 
+export type PlaylistDetailResponse = {
+  playlist: Playlist
+  tracks: PlaylistTrackRow[]
+  is_owner: boolean
+}
+
 export async function createPlaylist(payload: {
   name: string
   description?: string
@@ -112,8 +118,33 @@ export async function addTrackToPlaylist(playlistId: string, trackId: number): P
   )
 }
 
-export async function getPlaylistById(playlistId: string): Promise<{ playlist: Playlist; tracks: PlaylistTrackRow[] }> {
-  const { data } = await apiClient.get<{ success: boolean; playlist: Playlist; tracks: PlaylistTrackRow[] }>(
+export async function removeTrackFromPlaylist(playlistId: string, trackId: number): Promise<void> {
+  await apiClient.delete(`/library/playlists/${playlistId}/tracks/${trackId}`, {
+    headers: authHeaders(),
+  })
+}
+
+export async function updatePlaylist(
+  playlistId: string,
+  payload: Partial<Pick<Playlist, "name" | "description" | "is_public">>
+): Promise<Playlist> {
+  const { data } = await apiClient.put<{ success: boolean; playlist: Playlist }>(
+    `/library/playlists/${playlistId}`,
+    payload,
+    { headers: authHeaders() }
+  )
+  return data.playlist
+}
+
+export async function getMyPlaylists(): Promise<Playlist[]> {
+  const { data } = await apiClient.get<{ success: boolean; playlists: Playlist[] }>("/library/playlists", {
+    headers: authHeaders(),
+  })
+  return data.playlists
+}
+
+export async function getPlaylistById(playlistId: string): Promise<PlaylistDetailResponse> {
+  const { data } = await apiClient.get<{ success: boolean; playlist: Playlist; tracks: PlaylistTrackRow[]; is_owner: boolean }>(
     `/library/playlists/${playlistId}`,
     { headers: authHeaders() }
   )
@@ -121,5 +152,6 @@ export async function getPlaylistById(playlistId: string): Promise<{ playlist: P
   return {
     playlist: data.playlist,
     tracks: data.tracks,
+    is_owner: data.is_owner,
   }
 }

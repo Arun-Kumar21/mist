@@ -13,6 +13,8 @@ import {
   ArrowUpAZ,
 } from "lucide-react"
 
+import { getMyPlaylists } from "@/lib/api/library"
+import { useAuthStore } from "@/lib/stores/auth-store"
 import { Button } from "@/components/ui/button"
 import {
   Sidebar,
@@ -32,16 +34,48 @@ const mainNav = [
   { title: "Library", href: "/collections", icon: Library },
 ]
 
-const userPlaylists: Array<{ name: string; href: string }> = []
+type SidebarPlaylist = { name: string; href: string }
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("asc")
+  const [userPlaylists, setUserPlaylists] = React.useState<SidebarPlaylist[]>([])
+
+  React.useEffect(() => {
+    if (!isAuthenticated) {
+      setUserPlaylists([])
+      return
+    }
+
+    let cancelled = false
+
+    const load = async () => {
+      try {
+        const playlists = await getMyPlaylists()
+        if (cancelled) return
+        setUserPlaylists(
+          playlists.map((playlist) => ({
+            name: playlist.name,
+            href: `/playlists/${playlist.playlist_id}`,
+          }))
+        )
+      } catch {
+        if (!cancelled) setUserPlaylists([])
+      }
+    }
+
+    void load()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated, pathname])
 
   const sortedPlaylists = React.useMemo(() => {
     const list = [...userPlaylists].sort((a, b) => a.name.localeCompare(b.name))
     return sortOrder === "asc" ? list : list.reverse()
-  }, [sortOrder])
+  }, [sortOrder, userPlaylists])
 
   const isMainItemActive = React.useCallback(
     (href: string) => {
@@ -55,7 +89,7 @@ export function AppSidebar() {
   )
 
   return (
-    <Sidebar className="[&_[data-sidebar=menu-button]]:font-normal [&_[data-sidebar=menu-button]]:text-sidebar-foreground/85 dark:[&_[data-sidebar=menu-button]]:text-sidebar-foreground/70 [&_[data-sidebar=menu-button][data-active=true]]:bg-sidebar-accent [&_[data-sidebar=menu-button][data-active=true]]:text-sidebar-foreground dark:[&_[data-sidebar=menu-button][data-active=true]]:bg-sidebar-accent/80 dark:[&_[data-sidebar=menu-button][data-active=true]]:text-white [&_[data-sidebar=group-label]]:text-sidebar-foreground/65 dark:[&_[data-sidebar=group-label]]:text-sidebar-foreground/55">
+    <Sidebar className="**:data-[sidebar=menu-button]:font-normal **:data-[sidebar=menu-button]:text-sidebar-foreground/85 dark:**:data-[sidebar=menu-button]:text-sidebar-foreground/70 **:data-[sidebar=menu-button]:data-[active=true]:bg-sidebar-accent **:data-[sidebar=menu-button]:data-[active=true]:text-sidebar-foreground dark:**:data-[sidebar=menu-button]:data-[active=true]:bg-sidebar-accent/80 dark:**:data-[sidebar=menu-button]:data-[active=true]:text-white **:data-[sidebar=group-label]:text-sidebar-foreground/65 dark:**:data-[sidebar=group-label]:text-sidebar-foreground/55">
       <SidebarContent className="pt-3">
         <SidebarGroup>
           <SidebarGroupLabel>Browse</SidebarGroupLabel>
