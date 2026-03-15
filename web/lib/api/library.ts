@@ -69,3 +69,57 @@ export async function getPersonalizedFeed(limit = 24): Promise<PersonalizedFeed>
     count: data.count,
   }
 }
+
+export type Playlist = {
+  playlist_id: string
+  user_id: string
+  name: string
+  description: string | null
+  is_public: boolean
+  created_at: string | null
+  updated_at: string | null
+}
+
+export type PlaylistTrackRow = {
+  position: number
+  added_at: string | null
+  track: TrackListItem
+}
+
+export async function createPlaylist(payload: {
+  name: string
+  description?: string
+  is_public?: boolean
+}): Promise<Playlist> {
+  const { data } = await apiClient.post<{ success: boolean; playlist: Playlist }>(
+    "/library/playlists",
+    {
+      name: payload.name,
+      description: payload.description ?? null,
+      is_public: payload.is_public ?? false,
+    },
+    { headers: authHeaders() }
+  )
+
+  return data.playlist
+}
+
+export async function addTrackToPlaylist(playlistId: string, trackId: number): Promise<void> {
+  await apiClient.post(
+    `/library/playlists/${playlistId}/tracks/${trackId}`,
+    null,
+    { headers: authHeaders() }
+  )
+}
+
+export async function getPlaylistById(playlistId: string): Promise<{ playlist: Playlist; tracks: PlaylistTrackRow[] }> {
+  const { data } = await apiClient.get<{ success: boolean; playlist: Playlist; tracks: PlaylistTrackRow[] }>(
+    `/library/playlists/${playlistId}`,
+    { headers: authHeaders() }
+  )
+
+  return {
+    playlist: data.playlist,
+    tracks: data.tracks,
+  }
+}

@@ -1,3 +1,4 @@
+import axios from "axios"
 import apiClient from "@/lib/api/client"
 import { useAuthStore } from "@/lib/stores/auth-store"
 
@@ -5,6 +6,22 @@ function authHeaders() {
   const token = useAuthStore.getState().token
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
+
+function resolveUploadBaseUrl() {
+  const explicit = process.env.NEXT_PUBLIC_UPLOAD_API_BASE_URL
+  if (explicit) return explicit
+
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1"
+  return apiBase.replace("localhost:8000", "localhost:8001")
+}
+
+const uploadApiClient = axios.create({
+  baseURL: resolveUploadBaseUrl(),
+  timeout: 15000,
+  headers: {
+    "Content-Type": "application/json",
+  },
+})
 
 // ─── Track types ──────────────────────────────────────────────────────────────
 
@@ -174,7 +191,7 @@ export async function requestUpload(payload: {
   contentType: string
   metadata?: Record<string, unknown>
 }): Promise<UploadRequestResponse> {
-  const { data } = await apiClient.post<UploadRequestResponse>(
+  const { data } = await uploadApiClient.post<UploadRequestResponse>(
     "/upload/request",
     payload,
     { headers: authHeaders() }
@@ -183,7 +200,7 @@ export async function requestUpload(payload: {
 }
 
 export async function completeUpload(jobId: string, metadata: Record<string, unknown>): Promise<void> {
-  await apiClient.post(
+  await uploadApiClient.post(
     "/upload/complete",
     { jobId, metadata },
     { headers: authHeaders() }
@@ -200,6 +217,6 @@ export type UploadJobResponse = {
 }
 
 export async function getUploadJob(jobId: string): Promise<UploadJobResponse> {
-  const { data } = await apiClient.get<UploadJobResponse>(`/upload/job/${jobId}`, { headers: authHeaders() })
+  const { data } = await uploadApiClient.get<UploadJobResponse>(`/upload/job/${jobId}`, { headers: authHeaders() })
   return data
 }
