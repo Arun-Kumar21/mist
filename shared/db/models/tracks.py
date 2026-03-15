@@ -12,6 +12,8 @@ class Track(Base):
     artist_name = Column(String(500))
     album_title = Column(String(500))
     genre_top = Column(String(100), index=True)
+    cover_image_url = Column(Text)
+    cover_image_key = Column(String(1000))
     cdn_url = Column(Text)
     file_size_mb = Column(Float)
     duration_sec = Column(Float)
@@ -36,6 +38,8 @@ class Track(Base):
             'artist_name': self.artist_name,
             'album_title': self.album_title,
             'genre_top': self.genre_top,
+            'cover_image_url': self.cover_image_url,
+            'cover_image_key': self.cover_image_key,
             'cdn_url': self.cdn_url,
             'file_size_mb': self.file_size_mb,
             'duration_sec': self.duration_sec,

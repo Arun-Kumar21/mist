@@ -61,6 +61,8 @@ def _run_lightweight_migrations():
     statements = [
         "ALTER TABLE tracks ADD COLUMN IF NOT EXISTS is_featured_home BOOLEAN NOT NULL DEFAULT FALSE",
         "ALTER TABLE tracks ADD COLUMN IF NOT EXISTS home_feature_score INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE tracks ADD COLUMN IF NOT EXISTS cover_image_url TEXT",
+        "ALTER TABLE tracks ADD COLUMN IF NOT EXISTS cover_image_key VARCHAR(1000)",
     ]
     with engine.begin() as connection:
         for statement in statements:

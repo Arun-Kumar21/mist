@@ -35,6 +35,8 @@ async def on_startup():
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+app.add_middleware(AuthMiddleware, enable_protection=True)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
@@ -44,8 +46,6 @@ app.add_middleware(
     expose_headers=["*"],
     max_age=3600,
 )
-
-app.add_middleware(AuthMiddleware, enable_protection=True)
 
 API_PREFIX = "/api/v1"
 

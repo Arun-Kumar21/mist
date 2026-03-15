@@ -109,3 +109,33 @@ def delete_banner_image(image_key: str):
     except ClientError as e:
         logger.error(f"Error deleting banner image {image_key}: {e}")
         raise
+
+
+def upload_track_cover_image(file_bytes: bytes, s3_key: str, content_type: str) -> str:
+    """Upload track cover image bytes to S3 and return the URL."""
+    try:
+        s3_client = _get_s3_client()
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME,
+            Key=s3_key,
+            Body=file_bytes,
+            ContentType=content_type,
+            CacheControl='public, max-age=86400',
+        )
+        url = f"https://{S3_BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{s3_key}"
+        logger.info(f"Uploaded track cover image to {s3_key}")
+        return url
+    except ClientError as e:
+        logger.error(f"Error uploading track cover image to {s3_key}: {e}")
+        raise
+
+
+def delete_track_cover_image(image_key: str):
+    """Delete track cover image from S3 by key."""
+    try:
+        s3_client = _get_s3_client()
+        s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=image_key)
+        logger.info(f"Deleted track cover image {image_key}")
+    except ClientError as e:
+        logger.error(f"Error deleting track cover image {image_key}: {e}")
+        raise

@@ -40,6 +40,7 @@ def process_audio_file(job_id, s3_input_key, metadata, api_base_url):
             'artist_name': metadata.get('artist', 'Unknown Artist'),
             'album_title': metadata.get('album'),
             'genre_top': metadata.get('genre'),
+            'cover_image_url': metadata.get('cover_image_url') or metadata.get('image_url'),
             'listens': metadata.get('listens', 0),
             'interest': metadata.get('interest', 0),
             'processing_status': 'processing'

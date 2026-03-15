@@ -1,0 +1,140 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { getHomeSections, type HomeTrack } from "@/lib/api/home"
+import { TrackCard } from "@/components/track-card"
+import { usePlayerStore } from "@/lib/stores/player-store"
+import { useAuthStore } from "@/lib/stores/auth-store"
+import { getTrackLikeStatus, likeTrack, unlikeTrack } from "@/lib/api/player"
+
+type HomeSectionsState = {
+  popularSongs: HomeTrack[]
+  mostListened: HomeTrack[]
+  topPick: HomeTrack[]
+}
+
+const initialState: HomeSectionsState = {
+  popularSongs: [],
+  mostListened: [],
+  topPick: [],
+}
+
+function TrackRow({ title, tracks }: { title: string; tracks: HomeTrack[] }) {
+  const setQueueAndPlay = usePlayerStore((s) => s.setQueueAndPlay)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const [likedMap, setLikedMap] = useState<Record<number, boolean>>({})
+
+  if (!tracks.length) return null
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (!isAuthenticated) {
+      setLikedMap({})
+      return
+    }
+
+    const loadLikes = async () => {
+      const results = await Promise.all(
+        tracks.map(async (track) => {
+          try {
+            const response = await getTrackLikeStatus(track.track_id)
+            return [track.track_id, response.liked] as const
+          } catch {
+            return [track.track_id, false] as const
+          }
+        })
+      )
+
+      if (cancelled) return
+
+      setLikedMap(Object.fromEntries(results))
+    }
+
+    loadLikes()
+
+    return () => {
+      cancelled = true
+    }
+  }, [tracks, isAuthenticated])
+
+  const toggleTrackLike = async (trackId: number) => {
+    if (!isAuthenticated) return
+
+    const currentlyLiked = Boolean(likedMap[trackId])
+    setLikedMap((prev) => ({ ...prev, [trackId]: !currentlyLiked }))
+
+    try {
+      if (currentlyLiked) {
+        await unlikeTrack(trackId)
+      } else {
+        await likeTrack(trackId)
+      }
+    } catch {
+      setLikedMap((prev) => ({ ...prev, [trackId]: currentlyLiked }))
+    }
+  }
+
+  const queue = tracks.map((track) => ({
+    track_id: track.track_id,
+    title: track.title,
+    artist_name: track.artist_name,
+    cover_image_url: track.cover_image_url,
+  }))
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+      <div className="grid grid-cols-2 gap-4 max-[359px]:grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        {tracks.map((track, index) => (
+          <TrackCard
+            key={track.track_id}
+            title={track.title}
+            artist={track.artist_name}
+            imageUrl={track.cover_image_url}
+            liked={Boolean(likedMap[track.track_id])}
+            onPlay={() => setQueueAndPlay(queue, index)}
+            onLike={() => toggleTrackLike(track.track_id)}
+            onOpen={() => setQueueAndPlay(queue, index)}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+export function HomeTrackSections() {
+  const [data, setData] = useState<HomeSectionsState>(initialState)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getHomeSections(8)
+      .then(setData)
+      .catch(() => setData(initialState))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-5 w-36 animate-pulse rounded bg-muted" />
+        <div className="grid grid-cols-2 gap-4 max-[359px]:grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <div key={i} className="space-y-2">
+              <div className="animate-pulse rounded-lg bg-muted" style={{ aspectRatio: "16/10" }} />
+              <div className="h-4 w-4/5 animate-pulse rounded bg-muted" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-8">
+      <TrackRow title="Popular Songs" tracks={data.popularSongs} />
+      <TrackRow title="Most Listened" tracks={data.mostListened} />
+      <TrackRow title="Top Pick" tracks={data.topPick} />
+    </div>
+  )
+}

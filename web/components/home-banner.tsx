@@ -149,10 +149,10 @@ export function HomeBanner() {
       <button
         type="button"
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push("/trending") }}
-        className="absolute bottom-4 left-4 z-10 inline-flex cursor-pointer items-center gap-2 rounded-md bg-black/65 px-3 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-black/80"
+        className="absolute bottom-3 left-3 z-10 inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-black/65 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur-sm transition hover:bg-black/80 sm:bottom-4 sm:left-4 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
         aria-label="Go to trending"
       >
-        <ListMusic className="h-4 w-4" />
+        <ListMusic className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         Trending
       </button>
 
@@ -162,7 +162,7 @@ export function HomeBanner() {
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); prev() }}
-            className="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/40 p-1.5 text-white backdrop-blur-sm transition hover:bg-black/60"
+            className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/40 p-1.5 text-white backdrop-blur-sm transition hover:bg-black/60 sm:left-3"
             aria-label="Previous banner"
           >
             <ChevronLeft className="h-5 w-5 cursor-pointer"/>
@@ -170,7 +170,7 @@ export function HomeBanner() {
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); next() }}
-            className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/40 p-1.5 text-white backdrop-blur-sm transition hover:bg-black/60"
+            className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/40 p-1.5 text-white backdrop-blur-sm transition hover:bg-black/60 sm:right-3"
             aria-label="Next banner"
           >
             <ChevronRight className="h-5 w-5 cursor-pointer " />
@@ -180,7 +180,7 @@ export function HomeBanner() {
 
       {/* Dot indicators */}
       {n > 1 && (
-        <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5">
+        <div className="absolute bottom-2 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 sm:bottom-4">
           {banners.map((_, i) => (
             <button
               key={i}
