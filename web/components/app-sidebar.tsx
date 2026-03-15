@@ -14,11 +14,9 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Logo } from "@/components/logo"
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -120,20 +118,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-
-      <SidebarFooter className="p-3">
-        <div className="rounded-2xl border border-sidebar-border/70 bg-sidebar-accent/35 p-3">
-          <div className="flex items-center gap-3">
-            <Logo size={20} />
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-sidebar-foreground">MIST</p>
-              <p className="text-xs text-sidebar-foreground/60 dark:text-sidebar-foreground/50">
-                Music listening platform.
-              </p>
-            </div>
-          </div>
-        </div>
-      </SidebarFooter>
     </Sidebar>
   )
 }

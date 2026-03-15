@@ -3,10 +3,12 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { LogOut, SearchIcon, UserCog } from "lucide-react"
+import { LogOut, UserCog } from "lucide-react"
 
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { Logo } from "@/components/logo"
 import { ModeToggle } from "@/components/mode-toggle"
+import { SearchCommand } from "@/components/nav/search-command"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -17,7 +19,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 
 const avatarFallbackColors = [
@@ -56,17 +57,17 @@ export function AppNavbar() {
 
   return (
     <header className="sticky top-0 z-20 border-b bg-background/95 px-3 backdrop-blur supports-backdrop-filter:bg-background/70 sm:px-4">
-      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-3 py-3">
-        <SidebarTrigger />
-
-        <div className="order-3 basis-full sm:order-2 sm:basis-auto sm:flex-1">
-          <div className="relative w-full sm:max-w-xs lg:max-w-sm">
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search music" className="pl-8" />
-          </div>
+      <div className="mx-auto flex w-full max-w-7xl items-center gap-2 py-3 sm:gap-3">
+        <div className="flex items-center gap-2">
+          <SidebarTrigger />
+          <Link href="/" className="flex items-center gap-2 rounded-md px-1 py-1 transition-colors hover:text-foreground/80">
+            <Logo size={18} />
+            <span className="text-sm font-semibold tracking-[0.18em] text-foreground">MIST</span>
+          </Link>
         </div>
 
-        <div className="order-2 ml-auto flex items-center gap-2 sm:order-3">
+        <div className="ml-auto flex items-center gap-2">
+          <SearchCommand />
           <ModeToggle />
           {showAuthedUi ? (
             <DropdownMenu>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { isAxiosError } from "axios"
 import {
   ChevronUp,
   Heart,
@@ -25,6 +26,7 @@ import {
 import { useHLSPlayer } from "@/hooks/use-hls-player"
 import { usePlayerStore } from "@/lib/stores/player-store"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { useTrackLikesStore } from "@/lib/stores/track-likes-store"
 import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
 
@@ -35,18 +37,44 @@ function formatTime(seconds: number) {
   return `${mins}:${secs.toString().padStart(2, "0")}`
 }
 
+function getPlaybackErrorMessage(error: unknown) {
+  if (!isAxiosError(error)) {
+    return "This song can't be played right now."
+  }
+
+  if (error.response?.status === 429) {
+    return "Daily quota finished for today."
+  }
+
+  const detail = error.response?.data?.detail
+  if (typeof detail === "string" && detail.trim()) {
+    return detail
+  }
+  if (detail && typeof detail === "object" && "error" in detail) {
+    const detailError = (detail as { error?: unknown }).error
+    if (typeof detailError === "string" && detailError.trim()) {
+      return detailError
+    }
+  }
+
+  return "This song can't be played right now."
+}
+
 export function PlayerBottomBar() {
   const audioRef = useRef<HTMLAudioElement>(null)
+  const sessionIdRef = useRef<number | null>(null)
+  const currentTimeRef = useRef(0)
 
   const { queue, currentIndex, isVisible, playVersion, nextTrack, previousTrack } = usePlayerStore()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const likedMap = useTrackLikesStore((s) => s.likes)
+  const setLikeStatus = useTrackLikesStore((s) => s.setLikeStatus)
 
   const currentTrack = queue[currentIndex] ?? null
 
   const [streamUrl, setStreamUrl] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isLoop, setIsLoop] = useState(false)
-  const [liked, setLiked] = useState(false)
   const [sessionId, setSessionId] = useState<number | null>(null)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -55,21 +83,27 @@ export function PlayerBottomBar() {
   const [loadingTrack, setLoadingTrack] = useState(false)
   const [playerError, setPlayerError] = useState<string | null>(null)
 
+  const liked = currentTrack ? Boolean(likedMap[currentTrack.track_id]) : false
+
   const { hlsLoaded, hlsError } = useHLSPlayer(streamUrl, audioRef)
 
   // Load stream + start listen session whenever selected track changes.
   useEffect(() => {
-    if (!currentTrack || !isAuthenticated) return
+    if (!currentTrack || !isAuthenticated) {
+      return
+    }
+
+    setLikeStatus(currentTrack.track_id, false)
 
     let cancelled = false
 
     const load = async () => {
       setLoadingTrack(true)
-      setCurrentTime(0)
-      setDuration(0)
       setPlayerError(null)
 
       try {
+        await transitionFromCurrentTrack()
+
         const [stream, session, likeState] = await Promise.all([
           getTrackStreamInfo(currentTrack.track_id),
           startListeningSession(currentTrack.track_id),
@@ -80,12 +114,12 @@ export function PlayerBottomBar() {
 
         setStreamUrl(stream.streamUrl)
         setSessionId(session.session_id ?? null)
-        setLiked(Boolean((likeState as { liked?: boolean }).liked))
-      } catch {
+        setLikeStatus(currentTrack.track_id, Boolean((likeState as { liked?: boolean }).liked))
+      } catch (error) {
         if (cancelled) return
         setStreamUrl(null)
         setSessionId(null)
-        setPlayerError("This song can't be played right now.")
+        setPlayerError(getPlaybackErrorMessage(error))
       } finally {
         if (!cancelled) setLoadingTrack(false)
       }
@@ -96,7 +130,7 @@ export function PlayerBottomBar() {
     return () => {
       cancelled = true
     }
-  }, [currentTrack?.track_id, isAuthenticated])
+  }, [currentTrack?.track_id, isAuthenticated, setLikeStatus])
 
   // Autoplay whenever a user explicitly starts/changes tracks.
   useEffect(() => {
@@ -146,15 +180,52 @@ export function PlayerBottomBar() {
     return Math.min(100, (currentTime / duration) * 100)
   }, [currentTime, duration])
 
+  const transitionFromCurrentTrack = async () => {
+    const previousSessionId = sessionIdRef.current
+    const previousPosition = audioRef.current?.currentTime ?? currentTimeRef.current
+
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
+    }
+
+    setIsPlaying(false)
+    setStreamUrl(null)
+    setSessionId(null)
+    setCurrentTime(0)
+    setDuration(0)
+
+    if (previousSessionId !== null) {
+      await completeListeningSession(previousSessionId, previousPosition).catch(() => {})
+    }
+  }
+
+  useEffect(() => {
+    sessionIdRef.current = sessionId
+  }, [sessionId])
+
+  useEffect(() => {
+    currentTimeRef.current = currentTime
+  }, [currentTime])
+
   const togglePlay = async () => {
     if (!audioRef.current || !hlsLoaded || hlsError || !!playerError) return
     if (isPlaying) {
       audioRef.current.pause()
     } else {
       try {
+        if (sessionId === null && currentTrack) {
+          const session = await startListeningSession(currentTrack.track_id)
+          setSessionId(session.session_id ?? null)
+        }
+
+        if (duration > 0 && currentTime >= duration - 0.25) {
+          audioRef.current.currentTime = 0
+          setCurrentTime(0)
+        }
         await audioRef.current.play()
-      } catch {
-        // no-op
+      } catch (error) {
+        setPlayerError(getPlaybackErrorMessage(error))
       }
     }
   }
@@ -170,14 +241,14 @@ export function PlayerBottomBar() {
     if (!currentTrack || !isAuthenticated) return
     try {
       if (liked) {
+        setLikeStatus(currentTrack.track_id, false)
         await unlikeTrack(currentTrack.track_id)
-        setLiked(false)
       } else {
+        setLikeStatus(currentTrack.track_id, true)
         await likeTrack(currentTrack.track_id)
-        setLiked(true)
       }
     } catch {
-      // no-op for now
+      setLikeStatus(currentTrack.track_id, liked)
     }
   }
 
@@ -187,7 +258,24 @@ export function PlayerBottomBar() {
       void audioRef.current.play().catch(() => {})
       return
     }
+
+    const finishedSessionId = sessionId
+    const finishedAt = audioRef.current?.currentTime ?? duration
+
+    setIsPlaying(false)
+    setSessionId(null)
+
+    if (finishedSessionId !== null) {
+      void completeListeningSession(finishedSessionId, finishedAt).catch(() => {})
+    }
+  }
+
+  const handleNextTrack = () => {
     nextTrack()
+  }
+
+  const handlePreviousTrack = () => {
+    previousTrack()
   }
 
   useEffect(() => {
@@ -284,7 +372,9 @@ export function PlayerBottomBar() {
           <div className="flex items-center justify-center gap-2 sm:gap-2.5">
             <button
               type="button"
-              onClick={previousTrack}
+              onClick={() => {
+                handlePreviousTrack()
+              }}
               className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/70 hover:bg-muted"
               aria-label="Previous track"
             >
@@ -308,7 +398,9 @@ export function PlayerBottomBar() {
 
             <button
               type="button"
-              onClick={nextTrack}
+              onClick={() => {
+                handleNextTrack()
+              }}
               className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/70 hover:bg-muted"
               aria-label="Next track"
             >

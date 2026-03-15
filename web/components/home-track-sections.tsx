@@ -6,6 +6,7 @@ import { TrackCard } from "@/components/track-card"
 import { usePlayerStore } from "@/lib/stores/player-store"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { getTrackLikeStatus, likeTrack, unlikeTrack } from "@/lib/api/player"
+import { useTrackLikesStore } from "@/lib/stores/track-likes-store"
 
 type HomeSectionsState = {
   popularSongs: HomeTrack[]
@@ -22,15 +23,16 @@ const initialState: HomeSectionsState = {
 function TrackRow({ title, tracks }: { title: string; tracks: HomeTrack[] }) {
   const setQueueAndPlay = usePlayerStore((s) => s.setQueueAndPlay)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  const [likedMap, setLikedMap] = useState<Record<number, boolean>>({})
-
-  if (!tracks.length) return null
+  const likedMap = useTrackLikesStore((s) => s.likes)
+  const setManyLikeStatuses = useTrackLikesStore((s) => s.setManyLikeStatuses)
+  const setLikeStatus = useTrackLikesStore((s) => s.setLikeStatus)
+  const clearLikes = useTrackLikesStore((s) => s.clearLikes)
 
   useEffect(() => {
     let cancelled = false
 
     if (!isAuthenticated) {
-      setLikedMap({})
+      clearLikes()
       return
     }
 
@@ -48,7 +50,7 @@ function TrackRow({ title, tracks }: { title: string; tracks: HomeTrack[] }) {
 
       if (cancelled) return
 
-      setLikedMap(Object.fromEntries(results))
+      setManyLikeStatuses(results.map((entry) => [entry[0], entry[1]]))
     }
 
     loadLikes()
@@ -56,13 +58,13 @@ function TrackRow({ title, tracks }: { title: string; tracks: HomeTrack[] }) {
     return () => {
       cancelled = true
     }
-  }, [tracks, isAuthenticated])
+  }, [tracks, isAuthenticated, clearLikes, setManyLikeStatuses])
 
   const toggleTrackLike = async (trackId: number) => {
     if (!isAuthenticated) return
 
     const currentlyLiked = Boolean(likedMap[trackId])
-    setLikedMap((prev) => ({ ...prev, [trackId]: !currentlyLiked }))
+    setLikeStatus(trackId, !currentlyLiked)
 
     try {
       if (currentlyLiked) {
@@ -71,9 +73,11 @@ function TrackRow({ title, tracks }: { title: string; tracks: HomeTrack[] }) {
         await likeTrack(trackId)
       }
     } catch {
-      setLikedMap((prev) => ({ ...prev, [trackId]: currentlyLiked }))
+      setLikeStatus(trackId, currentlyLiked)
     }
   }
+
+  if (!tracks.length) return null
 
   const queue = tracks.map((track) => ({
     track_id: track.track_id,
