@@ -12,6 +12,7 @@ from routes.auth import router as auth_router
 from routes.tracks import router as track_router
 from routes.keys import router as key_router
 from routes.listen import router as listen_router
+from routes.banner import router as banner_router
 from middleware import AuthMiddleware
 
 settings.validate()
@@ -57,6 +58,7 @@ app.include_router(track_router, prefix=API_PREFIX)
 app.include_router(listen_router, prefix=API_PREFIX)
 app.include_router(key_router, prefix=API_PREFIX)
 app.include_router(key_router, prefix="/api")
+app.include_router(banner_router, prefix=API_PREFIX)
 
 if __name__ == "__main__":
     import uvicorn

@@ -47,3 +47,65 @@ def delete_track_files(track_id: int):
     except ClientError as e:
         logger.error(f"Error deleting S3 files for track {track_id}: {e}")
         raise
+
+
+def generate_presigned_read_url(s3_key: str, expires_in: int = 3600) -> str:
+    """Generate a temporary signed URL for reading an S3 object."""
+    try:
+        s3_client = _get_s3_client()
+        return s3_client.generate_presigned_url(
+            ClientMethod='get_object',
+            Params={'Bucket': S3_BUCKET_NAME, 'Key': s3_key},
+            ExpiresIn=expires_in,
+        )
+    except ClientError as e:
+        logger.error(f"Error generating presigned read URL for {s3_key}: {e}")
+        raise
+
+
+def upload_banner_image(file_bytes: bytes, s3_key: str, content_type: str) -> str:
+    """Upload banner image bytes to S3 and return the public URL."""
+    try:
+        s3_client = _get_s3_client()
+        try:
+            s3_client.put_object(
+                Bucket=S3_BUCKET_NAME,
+                Key=s3_key,
+                Body=file_bytes,
+                ContentType=content_type,
+                ACL='public-read',
+                CacheControl='public, max-age=86400',
+            )
+        except ClientError as acl_error:
+            error_code = acl_error.response.get('Error', {}).get('Code')
+            if error_code == 'AccessControlListNotSupported':
+                logger.warning(
+                    "Bucket has ACLs disabled; retrying banner upload without ACL. "
+                    "Ensure bucket policy allows public s3:GetObject for banners/*"
+                )
+                s3_client.put_object(
+                    Bucket=S3_BUCKET_NAME,
+                    Key=s3_key,
+                    Body=file_bytes,
+                    ContentType=content_type,
+                    CacheControl='public, max-age=86400',
+                )
+            else:
+                raise
+        url = f"https://{S3_BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{s3_key}"
+        logger.info(f"Uploaded banner image to {s3_key}")
+        return url
+    except ClientError as e:
+        logger.error(f"Error uploading banner image to {s3_key}: {e}")
+        raise
+
+
+def delete_banner_image(image_key: str):
+    """Delete a banner image from S3 by its key."""
+    try:
+        s3_client = _get_s3_client()
+        s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=image_key)
+        logger.info(f"Deleted banner image {image_key}")
+    except ClientError as e:
+        logger.error(f"Error deleting banner image {image_key}: {e}")
+        raise

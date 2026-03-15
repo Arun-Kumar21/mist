@@ -13,6 +13,7 @@ ADMIN_ROUTES: Set[str] = set()
 
 ADMIN_PREFIXES: Set[str] = {
     "/api/v1/upload",
+    "/api/v1/banners/all",
 }
 
 
@@ -23,6 +24,8 @@ def is_public_route(path: str, method: str = "GET") -> bool:
         if path.startswith(prefix):
             return True
     if method == "GET":
+        if path == "/api/v1/banners":
+            return True
         if path == "/api/v1/tracks" or re.match(r'^/api/v1/tracks\?', path):
             return True
         if re.match(r'^/api/v1/tracks/\d+$', path):
