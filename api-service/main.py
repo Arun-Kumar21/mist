@@ -1,5 +1,6 @@
 from fastapi import FastAPI, APIRouter
 import logging
+import threading
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -31,10 +32,17 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
 
 app = FastAPI(title="MIST API", version="1.0.0")
 
+
+def _initialize_database() -> None:
+    try:
+        create_tables()
+        logger.info("Database tables ready")
+    except Exception:
+        logger.exception("Database initialization failed; API will start and retry on next deploy/restart")
+
 @app.on_event("startup")
 async def on_startup():
-    create_tables()
-    logger.info("Database tables ready")
+    threading.Thread(target=_initialize_database, daemon=True).start()
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
