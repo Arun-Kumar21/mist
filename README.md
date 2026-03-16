@@ -67,27 +67,45 @@ cd mist
 
 ```bash
 cp .env.example .env
+cp web/env.example web/.env.local
 ```
 
-Fill in `.env`:
+Update `.env` for your local/dev values:
 
 ```env
-DATABASE_URL=postgresql://user:password@host:5432/mist_db
-AWS_ACCESS_KEY_ID=your_access_key
-AWS_SECRET_ACCESS_KEY=your_secret_key
-AWS_REGION=us-east-1
-S3_BUCKET_NAME=your-bucket-name
-SECRET_KEY=a-long-random-string
-REDIS_URL=redis://redis:6379/0
-CLIENT_URLS=http://localhost:3000
+ENVIRONMENT=development
+HOST=0.0.0.0
+PORT=8000
+
 API_BASE_URL=http://localhost:8000
+HLS_KEY_BASE_URL=http://localhost:8000
+
+DATABASE_URL=postgresql://user:password@host:5432/mist_db
+REDIS_URL=redis://localhost:6379/0
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/0
+
+AWS_ACCESS_KEY_ID=your_access_key_here
+AWS_SECRET_ACCESS_KEY=your_secret_key_here
+AWS_REGION=ap-south-1
+S3_BUCKET_NAME=your-bucket-name
+
+CLIENT_URLS=http://localhost:3000
+SECRET_KEY=a-long-random-string
+LOG_LEVEL=DEBUG
 ```
 
-Create `web/.env`:
+Update `web/.env.local`:
 
 ```env
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+NEXT_PUBLIC_UPLOAD_API_BASE_URL=http://localhost:8001/api/v1
 ```
+
+Notes:
+
+- `web/env.example` uses production-style domain placeholders. For local development, use localhost values in `web/.env.local` as shown above.
+- Docker Compose reads root `.env` automatically. The web image uses `NEXT_PUBLIC_*` values from root `.env` as build args.
 
 ### 3. Run with Docker Compose
 
@@ -108,6 +126,12 @@ Database tables are created automatically by SQLAlchemy when the API boots for t
 ### Running without Docker
 
 Install the shared package first, then each service separately.
+
+Start Redis first (required by upload and processor services).
+
+```bash
+docker run --name mist-redis -p 6379:6379 redis:7-alpine
+```
 
 ```bash
 # Shared package (required by all Python services)
@@ -142,6 +166,7 @@ celery -A celery_app worker --loglevel=info --concurrency=2
 
 ```bash
 cd web
+cp env.example .env.local
 npm install
 npm run dev
 ```

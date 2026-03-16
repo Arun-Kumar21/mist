@@ -103,7 +103,7 @@ export function AppNavbar() {
                 <DropdownMenuItem asChild className="rounded-sm px-1.5 py-1.5">
                   <Link href="/account" className="cursor-pointer">
                     <UserCog />
-                    Manage account
+                    Manage account <span className="text-purple-300">[TODO]</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
