@@ -1,12 +1,21 @@
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, UploadFile, File
 from pydantic import BaseModel
 from typing import Optional
 import os
 import logging
+import uuid
+from urllib.parse import urlparse, unquote
 
 from shared.db.controllers import TrackRepository, TrackEmbeddingRepository
 from shared.db.controllers.analytics_controller import AnalyticsRepository
-from services.s3_service import generate_hls_stream_url, delete_track_files
+from services.s3_service import (
+    generate_hls_stream_url,
+    generate_presigned_read_url,
+    generate_object_public_url,
+    delete_track_files,
+    upload_track_cover_image,
+    delete_track_cover_image,
+)
 from services.listening_service import ListeningService
 from middleware import require_admin
 
@@ -16,6 +25,29 @@ router = APIRouter(prefix="/tracks", tags=["Tracks"])
 
 API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')
 API_PREFIX = 'api/v1'
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/avif"}
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB
+
+
+def _serialize_track(track):
+    payload = track.to_dict()
+
+    cover_key = payload.get("cover_image_key")
+    if not cover_key:
+        raw_cover_url = payload.get("cover_image_url")
+        if isinstance(raw_cover_url, str) and "amazonaws.com/" in raw_cover_url:
+            parsed = urlparse(raw_cover_url)
+            if parsed.path:
+                cover_key = unquote(parsed.path.lstrip("/"))
+
+    if cover_key:
+        try:
+            payload["cover_image_url"] = generate_presigned_read_url(cover_key, expires_in=86400)
+        except Exception:
+            payload["cover_image_url"] = generate_object_public_url(cover_key)
+
+    payload["cdn_url"] = generate_hls_stream_url(track.track_id)
+    return payload
 
 
 @router.get("")
@@ -31,7 +63,7 @@ async def get_tracks(
             tracks = TrackRepository.filter_by_genre(genre, limit, actual_offset)
         else:
             tracks = TrackRepository.get_all(limit, actual_offset)
-        return {"success": True, "count": len(tracks), "tracks": [t.to_dict() for t in tracks]}
+        return {"success": True, "count": len(tracks), "tracks": [_serialize_track(t) for t in tracks]}
     except Exception as e:
         logger.error(f"Error fetching tracks: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -44,7 +76,7 @@ async def search_tracks(
 ):
     try:
         tracks = TrackRepository.search(q, limit)
-        return {"success": True, "query": q, "count": len(tracks), "tracks": [t.to_dict() for t in tracks]}
+        return {"success": True, "query": q, "count": len(tracks), "tracks": [_serialize_track(t) for t in tracks]}
     except Exception as e:
         logger.error(f"Error searching tracks: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -66,7 +98,7 @@ async def get_track_by_id(track_id: int):
         track = TrackRepository.get_by_id(track_id)
         if not track:
             raise HTTPException(status_code=404, detail="Track not found")
-        return {"success": True, "track": track.to_dict()}
+        return {"success": True, "track": _serialize_track(track)}
     except HTTPException:
         raise
     except Exception as e:
@@ -98,6 +130,7 @@ async def get_stream_info(track_id: int, request: Request):
         if not track.cdn_url:
             raise HTTPException(status_code=404, detail="Stream not available")
 
+        # Always compute stream URL to avoid stale persisted URLs with wrong region/host.
         stream_url = generate_hls_stream_url(track_id)
         return {
             "success": True,
@@ -141,6 +174,9 @@ class UpdateTrackRequest(BaseModel):
     artist_name: Optional[str] = None
     album_title: Optional[str] = None
     genre_top: Optional[str] = None
+    cover_image_url: Optional[str] = None
+    is_featured_home: Optional[bool] = None
+    home_feature_score: Optional[int] = None
 
 
 @router.put("/{track_id}")
@@ -153,7 +189,8 @@ async def update_track(track_id: int, req: UpdateTrackRequest, request: Request)
         if not update_data:
             raise HTTPException(status_code=400, detail="No fields to update")
         TrackRepository.update(track_id, update_data)
-        return {"success": True, "track": TrackRepository.get_by_id(track_id).to_dict()}
+        updated = TrackRepository.get_by_id(track_id)
+        return {"success": True, "track": _serialize_track(updated) if updated else None}
     except HTTPException:
         raise
     except Exception as e:
@@ -165,16 +202,62 @@ async def update_track(track_id: int, req: UpdateTrackRequest, request: Request)
 @require_admin
 async def delete_track(track_id: int, request: Request):
     try:
-        if not TrackRepository.get_by_id(track_id):
+        track = TrackRepository.get_by_id(track_id)
+        if not track:
             raise HTTPException(status_code=404, detail="Track not found")
         try:
             delete_track_files(track_id)
         except Exception as s3_error:
             logger.error(f"Error deleting S3 files: {s3_error}")
+        if track.cover_image_key:
+            try:
+                delete_track_cover_image(track.cover_image_key)
+            except Exception as s3_error:
+                logger.error(f"Error deleting track cover image: {s3_error}")
         TrackRepository.delete(track_id)
         return {"success": True, "message": f"Track {track_id} deleted"}
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error deleting track {track_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/{track_id}/cover-image")
+@require_admin
+async def upload_track_cover(track_id: int, request: Request, image: UploadFile = File(...)):
+    try:
+        track = TrackRepository.get_by_id(track_id)
+        if not track:
+            raise HTTPException(status_code=404, detail="Track not found")
+
+        if image.content_type not in ALLOWED_IMAGE_TYPES:
+            raise HTTPException(status_code=400, detail="Unsupported image type. Use JPEG, PNG, WebP, or AVIF.")
+
+        file_bytes = await image.read()
+        if len(file_bytes) > MAX_IMAGE_SIZE:
+            raise HTTPException(status_code=413, detail="Image exceeds 10 MB limit.")
+
+        ext = image.filename.rsplit('.', 1)[-1].lower() if image.filename and '.' in image.filename else 'jpg'
+        image_key = f"tracks/covers/{track_id}/{uuid.uuid4()}.{ext}"
+        image_url = upload_track_cover_image(file_bytes, image_key, image.content_type)
+
+        old_key = track.cover_image_key
+        TrackRepository.update(track_id, {
+            "cover_image_url": image_url,
+            "cover_image_key": image_key,
+        })
+
+        if old_key:
+            try:
+                delete_track_cover_image(old_key)
+            except Exception as e:
+                logger.warning(f"Could not delete old track cover image {old_key}: {e}")
+
+        updated = TrackRepository.get_by_id(track_id)
+        return {"success": True, "track": _serialize_track(updated) if updated else None}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading cover image for track {track_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))

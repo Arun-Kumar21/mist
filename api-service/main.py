@@ -6,22 +6,40 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from shared.config import settings
+from shared.db.database import create_tables
+import shared.db.models  # noqa: F401 — ensures all models are registered with Base
 from routes.auth import router as auth_router
 from routes.tracks import router as track_router
 from routes.keys import router as key_router
 from routes.listen import router as listen_router
+from routes.banner import router as banner_router
+from routes.home import router as home_router
+from routes.curation import router as curation_router
+from routes.library import router as library_router
 from middleware import AuthMiddleware
 
 settings.validate()
 
 logging.basicConfig(level=settings.LOG_LEVEL)
+
+for noisy_logger in ("boto3", "botocore", "s3transfer", "urllib3"):
+    logging.getLogger(noisy_logger).setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
 
 app = FastAPI(title="MIST API", version="1.0.0")
+
+@app.on_event("startup")
+async def on_startup():
+    create_tables()
+    logger.info("Database tables ready")
+
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+app.add_middleware(AuthMiddleware, enable_protection=True)
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,8 +50,6 @@ app.add_middleware(
     expose_headers=["*"],
     max_age=3600,
 )
-
-app.add_middleware(AuthMiddleware, enable_protection=True)
 
 API_PREFIX = "/api/v1"
 
@@ -49,6 +65,10 @@ app.include_router(track_router, prefix=API_PREFIX)
 app.include_router(listen_router, prefix=API_PREFIX)
 app.include_router(key_router, prefix=API_PREFIX)
 app.include_router(key_router, prefix="/api")
+app.include_router(banner_router, prefix=API_PREFIX)
+app.include_router(home_router, prefix=API_PREFIX)
+app.include_router(curation_router, prefix=API_PREFIX)
+app.include_router(library_router, prefix=API_PREFIX)
 
 if __name__ == "__main__":
     import uvicorn

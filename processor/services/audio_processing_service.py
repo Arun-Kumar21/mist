@@ -2,7 +2,7 @@ import os
 import shutil
 import logging
 
-from services.s3_service import download_file_from_s3, upload_directory_to_s3
+from services.s3_service import download_file_from_s3, upload_directory_to_s3, generate_object_url
 from processing.audio_features import extract_audio_features
 from processing.embedding_utils import create_embedding_vector
 from processing.hls_converter import convert_to_hls
@@ -37,9 +37,10 @@ def process_audio_file(job_id, s3_input_key, metadata, api_base_url):
 
         track_data = {
             'title': metadata.get('title', 'Unknown'),
-            'artist_name': metadata.get('artist', 'Unknown Artist'),
-            'album_title': metadata.get('album'),
-            'genre_top': metadata.get('genre'),
+            'artist_name': metadata.get('artist_name') or metadata.get('artist', 'Unknown Artist'),
+            'album_title': metadata.get('album_title') or metadata.get('album'),
+            'genre_top': metadata.get('genre_top') or metadata.get('genre'),
+            'cover_image_url': metadata.get('cover_image_url') or metadata.get('image_url'),
             'listens': metadata.get('listens', 0),
             'interest': metadata.get('interest', 0),
             'processing_status': 'processing'
@@ -64,9 +65,7 @@ def process_audio_file(job_id, s3_input_key, metadata, api_base_url):
         track_hls_dir = os.path.join(hls_output_dir, str(track_id))
         upload_directory_to_s3(track_hls_dir, hls_s3_prefix)
 
-        s3_bucket = os.getenv('S3_BUCKET_NAME')
-        aws_region = os.getenv('AWS_REGION', 'us-east-1')
-        cdn_url = f"https://{s3_bucket}.s3.{aws_region}.amazonaws.com/{hls_s3_prefix}/master.m3u8"
+        cdn_url = generate_object_url(f"{hls_s3_prefix}/master.m3u8")
 
         duration_sec = features.get('duration', 0)
         TrackRepository.update(track_id, {

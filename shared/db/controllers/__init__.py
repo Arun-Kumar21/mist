@@ -5,10 +5,15 @@ from .processing_job_controller import ProcessingJobRepository
 from .track_encryption_keys_controller import TrackEncryptionKeysRepository
 from .listening_history_controller import ListeningHistoryRepository, DailyQuotaRepository
 from .analytics_controller import AnalyticsRepository
+from .banner_controller import BannerRepository
+from .admin_curated_track_controller import AdminCuratedTrackRepository
+from .track_like_controller import TrackLikeRepository
+from .playlist_controller import PlaylistRepository, PlaylistTrackRepository
 
 __all__ = [
     'TrackRepository', 'AudioFeaturesRepository', 'TrackEmbeddingRepository',
     'ProcessingJobRepository', 'TrackEncryptionKeysRepository',
     'ListeningHistoryRepository', 'DailyQuotaRepository',
-    'AnalyticsRepository'
+    'AnalyticsRepository', 'BannerRepository', 'AdminCuratedTrackRepository',
+    'TrackLikeRepository', 'PlaylistRepository', 'PlaylistTrackRepository'
 ]

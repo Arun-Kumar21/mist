@@ -12,7 +12,12 @@ if sys.version_info >= (3, 13):
 
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 
-celery_app = Celery('mist_audio_processor', broker=REDIS_URL, backend=REDIS_URL)
+celery_app = Celery(
+    'mist_audio_processor',
+    broker=REDIS_URL,
+    backend=REDIS_URL,
+    include=['tasks.audio_processing'],
+)
 
 celery_app.conf.update(
     task_serializer='json',
@@ -27,3 +32,6 @@ celery_app.conf.update(
     broker_connection_retry_on_startup=True,
     task_always_eager=False,
 )
+
+# Import task module to guarantee registration when worker starts with `-A celery_app`.
+import tasks.audio_processing  # noqa: E402,F401

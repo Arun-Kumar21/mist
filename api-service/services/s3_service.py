@@ -17,6 +17,8 @@ S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
 if not S3_BUCKET_NAME:
     raise ValueError("S3_BUCKET_NAME not set")
 
+_BUCKET_PUBLIC_BASE_URL = None
+
 
 def _get_s3_client():
     return boto3.client(
@@ -27,9 +29,32 @@ def _get_s3_client():
     )
 
 
+def _get_bucket_public_base_url() -> str:
+    global _BUCKET_PUBLIC_BASE_URL
+    if _BUCKET_PUBLIC_BASE_URL:
+        return _BUCKET_PUBLIC_BASE_URL
+
+    # Resolve actual bucket region to avoid constructing invalid public URLs.
+    s3_client = _get_s3_client()
+    try:
+        location = s3_client.get_bucket_location(Bucket=S3_BUCKET_NAME).get('LocationConstraint')
+    except ClientError as error:
+        logger.warning(f"Could not resolve bucket location for {S3_BUCKET_NAME}: {error}")
+        location = AWS_REGION
+    if location:
+        _BUCKET_PUBLIC_BASE_URL = f"https://{S3_BUCKET_NAME}.s3.{location}.amazonaws.com"
+    else:
+        _BUCKET_PUBLIC_BASE_URL = f"https://{S3_BUCKET_NAME}.s3.amazonaws.com"
+    return _BUCKET_PUBLIC_BASE_URL
+
+
+def generate_object_public_url(s3_key: str) -> str:
+    return f"{_get_bucket_public_base_url()}/{s3_key}"
+
+
 def generate_hls_stream_url(track_id: int) -> str:
     s3_key = f"audio/hls/{track_id}/master.m3u8"
-    return f"https://{S3_BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{s3_key}"
+    return generate_object_public_url(s3_key)
 
 
 def delete_track_files(track_id: int):
@@ -46,4 +71,96 @@ def delete_track_files(track_id: int):
             logger.info(f"Deleted {len(objects)} S3 files for track {track_id}")
     except ClientError as e:
         logger.error(f"Error deleting S3 files for track {track_id}: {e}")
+        raise
+
+
+def generate_presigned_read_url(s3_key: str, expires_in: int = 3600) -> str:
+    """Generate a temporary signed URL for reading an S3 object."""
+    try:
+        s3_client = _get_s3_client()
+        return s3_client.generate_presigned_url(
+            ClientMethod='get_object',
+            Params={'Bucket': S3_BUCKET_NAME, 'Key': s3_key},
+            ExpiresIn=expires_in,
+        )
+    except ClientError as e:
+        logger.error(f"Error generating presigned read URL for {s3_key}: {e}")
+        raise
+
+
+def upload_banner_image(file_bytes: bytes, s3_key: str, content_type: str) -> str:
+    """Upload banner image bytes to S3 and return the public URL."""
+    try:
+        s3_client = _get_s3_client()
+        try:
+            s3_client.put_object(
+                Bucket=S3_BUCKET_NAME,
+                Key=s3_key,
+                Body=file_bytes,
+                ContentType=content_type,
+                ACL='public-read',
+                CacheControl='public, max-age=86400',
+            )
+        except ClientError as acl_error:
+            error_code = acl_error.response.get('Error', {}).get('Code')
+            if error_code == 'AccessControlListNotSupported':
+                logger.warning(
+                    "Bucket has ACLs disabled; retrying banner upload without ACL. "
+                    "Ensure bucket policy allows public s3:GetObject for banners/*"
+                )
+                s3_client.put_object(
+                    Bucket=S3_BUCKET_NAME,
+                    Key=s3_key,
+                    Body=file_bytes,
+                    ContentType=content_type,
+                    CacheControl='public, max-age=86400',
+                )
+            else:
+                raise
+        url = generate_object_public_url(s3_key)
+        logger.info(f"Uploaded banner image to {s3_key}")
+        return url
+    except ClientError as e:
+        logger.error(f"Error uploading banner image to {s3_key}: {e}")
+        raise
+
+
+def delete_banner_image(image_key: str):
+    """Delete a banner image from S3 by its key."""
+    try:
+        s3_client = _get_s3_client()
+        s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=image_key)
+        logger.info(f"Deleted banner image {image_key}")
+    except ClientError as e:
+        logger.error(f"Error deleting banner image {image_key}: {e}")
+        raise
+
+
+def upload_track_cover_image(file_bytes: bytes, s3_key: str, content_type: str) -> str:
+    """Upload track cover image bytes to S3 and return the URL."""
+    try:
+        s3_client = _get_s3_client()
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME,
+            Key=s3_key,
+            Body=file_bytes,
+            ContentType=content_type,
+            CacheControl='public, max-age=86400',
+        )
+        url = generate_object_public_url(s3_key)
+        logger.info(f"Uploaded track cover image to {s3_key}")
+        return url
+    except ClientError as e:
+        logger.error(f"Error uploading track cover image to {s3_key}: {e}")
+        raise
+
+
+def delete_track_cover_image(image_key: str):
+    """Delete track cover image from S3 by key."""
+    try:
+        s3_client = _get_s3_client()
+        s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=image_key)
+        logger.info(f"Deleted track cover image {image_key}")
+    except ClientError as e:
+        logger.error(f"Error deleting track cover image {image_key}: {e}")
         raise

@@ -7,7 +7,8 @@ import shutil
 
 logger = logging.getLogger(__name__)
 
-API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')
+# This URL is written into HLS manifests as EXT-X-KEY URI and must be reachable by browsers.
+API_BASE_URL = os.getenv('HLS_KEY_BASE_URL') or os.getenv('API_BASE_URL', 'http://localhost:8000')
 
 
 @celery_app.task(name='tasks.process_audio', bind=True)

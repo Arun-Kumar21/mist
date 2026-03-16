@@ -9,9 +9,9 @@ The stack is orchestrated by `docker-compose.yml`.
 
 Services:
 
-- `client` (Nginx + built Vite app)
+- `web` (Next.js app)
   - Host port: `3000`
-  - Container port: `80`
+  - Container port: `3000`
   - Depends on: `api`
 - `api` (FastAPI)
   - Host port: `8000`
@@ -37,6 +37,10 @@ Responsibilities:
 
 - User auth (`register`, `login`, `me`)
 - Track read/search/popular/similar
+- Home content sections (`popular_songs`, `most_listened`, `top_pick`)
+- Banner management and delivery
+- Curated top-pick management (admin)
+- User library features (likes + playlists)
 - Stream bootstrap (`/tracks/{id}/stream`)
 - Listening session + quota accounting
 - HLS key delivery to authenticated users
@@ -96,6 +100,8 @@ Public routes:
 - `/api/v1/health`
 - `/api/v1/auth/register`
 - `/api/v1/auth/login`
+- `GET /api/v1/banners`
+- `GET /api/v1/home/*`
 - `GET /api/v1/tracks`
 - `GET /api/v1/tracks/{id}`
 - `GET /api/v1/tracks/search`
@@ -104,8 +110,8 @@ Public routes:
 
 Admin route prefixes:
 
-- `/api/v1/admin/`
 - `/api/v1/upload` (classified as admin in API middleware config)
+- `/api/v1/banners/all`
 
 `AuthMiddleware` behavior:
 
@@ -184,6 +190,9 @@ Base prefix: `/api/v1`
 - `PUT /tracks/{track_id}`
   - Auth: admin only (`@require_admin`)
   - Partial update on whitelisted fields
+  - Includes home featuring controls:
+    - `is_featured_home`
+    - `home_feature_score`
 - `DELETE /tracks/{track_id}`
   - Auth: admin only
   - Side effects:
@@ -200,6 +209,7 @@ Base prefix: `/api/v1`
     - Quota check
     - Creates listening session row
     - Increments `tracks_started`
+    - Increments track-level counters (`listens`, `home_feature_score`)
   - Returns: `session_id` + quota snapshot
 - `POST /listen/heartbeat`
   - Auth: required
@@ -227,6 +237,104 @@ Base prefix: `/api/v1`
   - Loads 16-byte AES key from DB
   - Returns `application/octet-stream` body exactly 16 bytes
   - Response headers include CORS + `Cache-Control: no-store`
+
+## 4.6 Banner (`routes/banner.py`)
+
+- `GET /banners`
+  - Auth: public
+  - Returns active banners ordered by `display_order`
+  - Image URL is returned as signed S3 URL (temporary)
+- `GET /banners/all`
+  - Auth: admin only
+  - Returns active + inactive banners
+- `POST /banners`
+  - Auth: admin only
+  - Multipart image upload + metadata
+  - Persists `image_key` and returns signed image URL
+- `PUT /banners/{banner_id}`
+  - Auth: admin only
+  - Updates metadata (`title`, `subtitle`, `link_url`, `display_order`, `is_active`)
+- `PUT /banners/{banner_id}/image`
+  - Auth: admin only
+  - Replaces image and attempts old image cleanup
+- `DELETE /banners/{banner_id}`
+  - Auth: admin only
+  - Deletes DB row and attempts S3 image cleanup
+
+## 4.7 Home sections (`routes/home.py`)
+
+- `GET /home/sections`
+  - Auth: public
+  - Returns:
+    - `popular_songs` (featured-home tracks)
+    - `most_listened` (tracks by `listens` desc)
+    - `top_pick` (admin curated picks)
+- `GET /home/popular`
+  - Auth: public
+  - Featured home tracks only
+- `GET /home/most-listened`
+  - Auth: public
+  - Tracks sorted by listens count
+- `GET /home/top-pick`
+  - Auth: public
+  - Admin curated list with curation metadata + track data
+
+## 4.8 Curation (`routes/curation.py`)
+
+- `GET /curation/top-picks`
+  - Auth: public
+  - Query: `active_only`
+  - Returns curated track list
+- `POST /curation/top-picks`
+  - Auth: admin only (`@require_admin`)
+  - Upserts a curated entry for a track
+- `PUT /curation/top-picks/{track_id}`
+  - Auth: admin only
+  - Updates curation `display_order` / `is_active`
+- `DELETE /curation/top-picks/{track_id}`
+  - Auth: admin only
+  - Removes track from curated table
+
+## 4.9 Library (`routes/library.py`)
+
+Likes:
+
+- `POST /library/likes/{track_id}`
+  - Auth: required
+  - Creates like if not already present
+- `DELETE /library/likes/{track_id}`
+  - Auth: required
+  - Removes like entry
+- `GET /library/likes`
+  - Auth: required
+  - Returns current user's liked tracks
+- `GET /library/likes/{track_id}/status`
+  - Auth: required
+  - Returns whether user likes given track
+
+Playlists:
+
+- `POST /library/playlists`
+  - Auth: required
+  - Creates a user playlist
+- `GET /library/playlists`
+  - Auth: required
+  - Lists current user's playlists
+- `GET /library/playlists/{playlist_id}`
+  - Auth: required
+  - Returns playlist metadata + tracks
+- `PUT /library/playlists/{playlist_id}`
+  - Auth: required (owner only)
+  - Updates playlist metadata
+- `DELETE /library/playlists/{playlist_id}`
+  - Auth: required (owner only)
+  - Deletes playlist
+- `POST /library/playlists/{playlist_id}/tracks/{track_id}`
+  - Auth: required (owner only)
+  - Adds a track to playlist
+- `DELETE /library/playlists/{playlist_id}/tracks/{track_id}`
+  - Auth: required (owner only)
+  - Removes a track from playlist
 
 ## 5) Upload Service Endpoint Catalog
 
@@ -393,6 +501,7 @@ Main entities (`shared/db/models`):
   - UUID PK, username, password_hash, role enum (`admin`|`user`), last login timestamps
 - `tracks`
   - Metadata, processing status, CDN URL, duration, counters
+  - Home fields: `is_featured_home`, `home_feature_score`
 - `processing_jobs`
   - UUID `job_id`, status lifecycle, optional linked `track_id`, error fields
 - `audio_features`
@@ -405,6 +514,16 @@ Main entities (`shared/db/models`):
   - Per session playback progress and completion
 - `daily_listen_quota`
   - Daily minute usage + started/completed counters
+- `banners`
+  - Hero banner metadata, activation state, order, S3 image key
+- `admin_curated_tracks`
+  - Admin-managed curated ordering for home top picks
+- `track_likes`
+  - User-track like relation (unique per user+track)
+- `playlists`
+  - User-owned playlist metadata
+- `playlist_tracks`
+  - Playlist-to-track entries with position
 
 ## 10) Quota and Listening Accounting
 
@@ -419,6 +538,9 @@ Stability logic:
 - Heartbeat and completion use monotonic duration (`max(new, previous)`)
 - Quota increments only by positive delta to prevent backward seek resets from reducing time
 - Daily records are date-range matched (UTC day start/end)
+- Listen start increments track ranking counters used by home sections:
+  - `tracks.listens`
+  - `tracks.home_feature_score`
 
 ## 11) Security Model
 
@@ -469,7 +591,7 @@ Delete path (track deletion):
 Primary env vars in use:
 
 - Database: `DATABASE_URL`
-- Auth: `SECRET_KEY`, `JWT_SECRET_KEY` (JWT helper currently uses `SECRET_KEY`)
+- Auth: `SECRET_KEY` (JWT helper uses `SECRET_KEY`)
 - AWS: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET_NAME`
 - Queue: `REDIS_URL`
 - Client/API origins: `CLIENT_URLS`
@@ -487,10 +609,10 @@ Docker build strategy:
   - `libsndfile1`
   - `libpq-dev`
 
-Client serving:
+Web app serving:
 
-- Nginx serves static build at container port `80`
-- Compose maps host `3000 -> 80`
+- Next.js production server listens on container port `3000`
+- Compose maps host `3000 -> 3000`
 
 ## 15) Operational Failure Modes and What Happens
 
@@ -506,7 +628,7 @@ Client serving:
 - `ListeningService.get_user_quota_limit` currently returns free tier for all roles.
 - Upload route accepts `filesize` but does not enforce against presigned POST limit in code path (S3 presigned policy enforces up to 50 MB).
 - API route config marks `/api/v1/upload` as admin path, but upload operations are handled by separate upload service with its own auth checks.
-- `JWT_SECRET_KEY` exists in settings, while auth helper directly reads `SECRET_KEY`; keep these aligned in deployment envs.
+- Use a single `SECRET_KEY` value across all services handling JWT generation and verification.
 
 ## 17) Request/Processing Sequence (Concrete)
 

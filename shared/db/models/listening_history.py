@@ -9,7 +9,7 @@ class UserListeningHistory(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=True)
-    track_id = Column(Integer, ForeignKey("tracks.track_id"), nullable=False)
+    track_id = Column(Integer, ForeignKey("tracks.track_id", ondelete="CASCADE"), nullable=False)
     started_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
     duration_listened = Column(Float, default=0.0)
     completed = Column(Boolean, default=False)

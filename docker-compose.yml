@@ -26,6 +26,9 @@ services:
     environment:
       - PORT=8000
       - REDIS_URL=redis://redis:6379/0
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     depends_on:
       redis:
         condition: service_healthy
@@ -59,21 +62,24 @@ services:
       - ./.env
     environment:
       - REDIS_URL=redis://redis:6379/0
+      - API_BASE_URL=${API_BASE_URL:-http://localhost:8000}
+      - HLS_KEY_BASE_URL=${HLS_KEY_BASE_URL:-http://localhost:8000}
     depends_on:
       redis:
         condition: service_healthy
     networks:
       - mist-network
 
-  client:
+  web:
     build:
-      context: ./client
+      context: ./web
       dockerfile: Dockerfile
       args:
-        VITE_SERVER_URL: ${VITE_SERVER_URL:-http://localhost:8000/api/v1}
-    container_name: mist-client
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api/v1}
+        NEXT_PUBLIC_UPLOAD_API_BASE_URL: ${NEXT_PUBLIC_UPLOAD_API_BASE_URL:-http://localhost:8001/api/v1}
+    container_name: mist-web
     ports:
-      - "3000:80"
+      - "3000:3000"
     depends_on:
       - api
     networks:
@@ -85,3 +91,8 @@ volumes:
 networks:
   mist-network:
     driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

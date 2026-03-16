@@ -3,6 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 from typing import Optional
 from datetime import datetime, timedelta, UTC
+from uuid import UUID
 import os
 from dotenv import load_dotenv
 
@@ -24,9 +25,11 @@ def sign_token(data: dict) -> Optional[str]:
 
 
 class TokenData:
-    def __init__(self, username: str, role: str):
-        self.username = username
+    def __init__(self, user_id: str, role: str, email: str | None = None, username: str | None = None):
+        self.user_id = user_id
         self.role = role
+        self.email = email
+        self.username = username
 
 
 def verify_token(token: str) -> Optional[TokenData]:
@@ -34,11 +37,13 @@ def verify_token(token: str) -> Optional[TokenData]:
         if not SECRET_KEY:
             return None
         payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
-        username: str = payload.get("username")
+        user_id: str = payload.get("user_id")
         role: str = payload.get("role")
-        if username is None:
+        email: str | None = payload.get("email")
+        username: str | None = payload.get("username")
+        if user_id is None:
             return None
-        return TokenData(username=username, role=role)
+        return TokenData(user_id=user_id, role=role, email=email, username=username)
     except JWTError:
         return None
 
@@ -49,7 +54,10 @@ async def get_current_user(
     token_data = verify_token(credentials.credentials)
     if token_data is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
-    user = UserRepository.get_by_username(token_data.username)
+    try:
+        user = UserRepository.get_by_id(UUID(token_data.user_id))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token subject") from exc
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     return user

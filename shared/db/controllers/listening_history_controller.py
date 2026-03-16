@@ -1,10 +1,11 @@
-from sqlalchemy import and_
+from sqlalchemy import and_, desc, func
 from datetime import datetime, UTC
 from typing import Optional
 from uuid import UUID
 
 from shared.db.database import SessionLocal
 from shared.db.models.listening_history import UserListeningHistory, DailyListenQuota
+from shared.db.models.tracks import Track
 
 
 class ListeningHistoryRepository:
@@ -44,6 +45,37 @@ class ListeningHistoryRepository:
             return session.query(UserListeningHistory).filter(
                 UserListeningHistory.id == history_id
             ).first()
+        finally:
+            session.close()
+
+    @staticmethod
+    def get_user_top_tracks(user_id: UUID, limit: int = 10) -> list[dict]:
+        session = SessionLocal()
+        try:
+            rows = session.query(
+                Track,
+                func.count(UserListeningHistory.id).label("play_count"),
+                func.sum(UserListeningHistory.duration_listened).label("total_duration"),
+            ).join(
+                UserListeningHistory,
+                Track.track_id == UserListeningHistory.track_id,
+            ).filter(
+                UserListeningHistory.user_id == user_id,
+            ).group_by(
+                Track.track_id,
+            ).order_by(
+                desc("play_count"),
+                desc("total_duration"),
+            ).limit(limit).all()
+
+            return [
+                {
+                    "track": track.to_dict(),
+                    "play_count": int(play_count or 0),
+                    "total_duration": float(total_duration or 0),
+                }
+                for track, play_count, total_duration in rows
+            ]
         finally:
             session.close()
 
