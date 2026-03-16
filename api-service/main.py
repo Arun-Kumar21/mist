@@ -55,6 +55,10 @@ API_PREFIX = "/api/v1"
 
 router = APIRouter(prefix=API_PREFIX)
 
+@app.get("/health")
+def root_health():
+    return {"status": "ok"}
+
 @router.get("/health")
 def health():
     return {"status": "ok"}
