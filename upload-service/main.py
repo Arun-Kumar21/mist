@@ -23,13 +23,37 @@ app = FastAPI(title="MIST Upload Service", version="1.0.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-allowed_origins = os.getenv("CLIENT_URLS", "http://localhost:3000,http://localhost:5173").split(",")
+
+def _parse_allowed_origins() -> tuple[list[str], str | None]:
+    env_origins = os.getenv("CLIENT_URLS", "")
+    origins = [origin.strip() for origin in env_origins.split(",") if origin.strip()]
+    origin_regex = os.getenv("CLIENT_ORIGIN_REGEX")
+
+    if not origins:
+        for key in ("CLIENT_URL", "FRONTEND_URL", "NEXT_PUBLIC_APP_URL"):
+            value = os.getenv(key, "").strip()
+            if value:
+                origins.append(value)
+
+    if origins:
+        return origins, origin_regex
+
+    environment = os.getenv("ENVIRONMENT", "development").lower()
+    if environment == "production":
+        # Railway preview/prod domains usually end with `.up.railway.app`.
+        return [], origin_regex or r"https://.*\.up\.railway\.app"
+
+    return ["http://localhost:3000", "http://localhost:5173"], origin_regex
+
+
+allowed_origins, allowed_origin_regex = _parse_allowed_origins()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in allowed_origins],
+    allow_origins=allowed_origins,
+    allow_origin_regex=allowed_origin_regex,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
     max_age=86400,
 )

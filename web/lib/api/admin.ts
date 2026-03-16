@@ -17,7 +17,7 @@ function resolveUploadBaseUrl() {
 
 const uploadApiClient = axios.create({
   baseURL: resolveUploadBaseUrl(),
-  timeout: 15000,
+  timeout: Number(process.env.NEXT_PUBLIC_UPLOAD_API_TIMEOUT_MS || 60000),
   headers: {
     "Content-Type": "application/json",
   },

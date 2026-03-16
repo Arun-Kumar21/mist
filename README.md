@@ -100,12 +100,25 @@ Update `web/.env.local`:
 ```env
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
 NEXT_PUBLIC_UPLOAD_API_BASE_URL=http://localhost:8001/api/v1
+NEXT_PUBLIC_UPLOAD_API_TIMEOUT_MS=60000
 ```
 
 Notes:
 
 - `web/env.example` uses production-style domain placeholders. For local development, use localhost values in `web/.env.local` as shown above.
 - Docker Compose reads root `.env` automatically. The web image uses `NEXT_PUBLIC_*` values from root `.env` as build args.
+
+### Railway deploy checklist
+
+Set these variables in Railway services to avoid upload preflight failures and cold-start client timeouts:
+
+- API/Upload services: `ENVIRONMENT=production`
+- API/Upload services: `CLIENT_URLS=https://<your-web-domain>` (comma-separate multiple origins)
+- Web service: `NEXT_PUBLIC_API_BASE_URL=https://<api-domain>/api/v1`
+- Web service: `NEXT_PUBLIC_UPLOAD_API_BASE_URL=https://<upload-domain>/api/v1`
+- Web service: `NEXT_PUBLIC_UPLOAD_API_TIMEOUT_MS=60000`
+
+If `CLIENT_URLS` is not set in production for upload-service, it falls back to a Railway domain regex (`https://*.up.railway.app`). Setting explicit `CLIENT_URLS` is still recommended.
 
 ### 3. Run with Docker Compose
 
