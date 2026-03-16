@@ -4,7 +4,7 @@ A self-hosted music streaming platform. Upload audio files and they are transcod
 
 ## Stack
 
-- **Frontend** — Next.js 15 (App Router), TypeScript, shadcn UI, Tailwind CSS, Zustand
+- **Frontend** — Next.js 16 (App Router), TypeScript, shadcn UI, Tailwind CSS, Zustand
 - **API** — FastAPI, SlowAPI rate limiting, JWT auth, SQLAlchemy
 - **Upload service** — FastAPI, S3 presigned POST, Celery task dispatch
 - **Processor** — Celery worker, FFmpeg, librosa, pgvector embeddings
@@ -165,8 +165,8 @@ Example CORS configuration for the bucket:
 
 Apply it via the AWS console under the bucket's Permissions tab, or with the AWS CLI.
 
-## TODO
 
-- Redis caching for track metadata
-- Playlist management
-- UI redesign
+- Implement Redis caching for track metadata to improve performance
+- Integrate a payment gateway for premium account upgrades
+- Adjust daily listening quotas based on payment status
+- Add automated tests for core services and endpoints
