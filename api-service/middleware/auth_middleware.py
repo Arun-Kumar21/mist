@@ -1,6 +1,7 @@
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 import logging
 from uuid import UUID
 
@@ -20,7 +21,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         if request.method == "OPTIONS":
-            return await call_next(request)
+            # Preflight requests should not traverse auth or route handlers.
+            return Response(status_code=204)
 
         if not self.enable_protection:
             return await call_next(request)

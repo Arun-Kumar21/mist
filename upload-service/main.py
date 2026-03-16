@@ -31,6 +31,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
+    max_age=86400,
 )
 
 from routes.upload import router as upload_router
