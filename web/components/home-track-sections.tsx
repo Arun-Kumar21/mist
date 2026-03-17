@@ -165,13 +165,18 @@ function TrackRow({ title, tracks }: { title: string; tracks: HomeTrack[] }) {
 export function HomeTrackSections() {
   const [data, setData] = useState<HomeSectionsState>(initialState)
   const [loading, setLoading] = useState(true)
+  const [hasError, setHasError] = useState(false)
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true)
+    setHasError(false)
     getHomeSections(8)
-      .then(setData)
-      .catch(() => setData(initialState))
+      .then((result) => { setData(result); setHasError(false) })
+      .catch(() => { setData(initialState); setHasError(true) })
       .finally(() => setLoading(false))
-  }, [])
+  }
+
+  useEffect(() => { load() }, [])
 
   if (loading) {
     return (
@@ -185,6 +190,35 @@ export function HomeTrackSections() {
             </div>
           ))}
         </div>
+      </div>
+    )
+  }
+
+  if (hasError) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-16 text-center">
+        <p className="text-sm text-muted-foreground">Couldn't load music right now.</p>
+        <button
+          type="button"
+          onClick={load}
+          className="rounded-md border border-border px-4 py-1.5 text-sm transition-colors hover:bg-accent"
+        >
+          Try again
+        </button>
+      </div>
+    )
+  }
+
+  const isEmpty =
+    !data.popularSongs.length &&
+    !data.mostListened.length &&
+    !data.topPick.length &&
+    !data.popularPlaylists.length
+
+  if (isEmpty) {
+    return (
+      <div className="py-16 text-center">
+        <p className="text-sm text-muted-foreground">No music available yet. Check back soon.</p>
       </div>
     )
   }

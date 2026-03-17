@@ -14,7 +14,7 @@ export function HomeBanner() {
   const [animated, setAnimated] = useState(true)
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [imageFailed, setImageFailed] = useState(false)
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     getActiveBanners()
@@ -109,14 +109,20 @@ export function HomeBanner() {
             style={{ width: `${100 / slideCount}%` }}
             onClick={() => { if (b.link_url) router.push(b.link_url) }}
           >
-            {b.image_url && !imageFailed ? (
+            {b.image_url && !failedImages.has(b.image_url) ? (
               <img
                 src={b.image_url}
                 alt={b.title ?? "Banner"}
-                className="absolute inset-0 h-full w-full object-cover "
+                className="absolute inset-0 h-full w-full object-cover"
                 draggable={false}
                 loading={i === 1 ? "eager" : "lazy"}
-                onError={() => setImageFailed(true)}
+                onError={() =>
+                  setFailedImages((prev) => {
+                    const next = new Set(prev)
+                    next.add(b.image_url!)
+                    return next
+                  })
+                }
               />
             ) : (
               <div className="absolute inset-0 bg-muted" />

@@ -119,22 +119,22 @@ export function AuthCard({ mode }: AuthCardProps) {
 
   return (
     <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-border/70 bg-card shadow-sm md:grid-cols-[0.95fr_1.05fr]">
-      <aside className="flex flex-col justify-between gap-10 bg-muted/50 p-6 sm:p-8">
+      <aside className="hidden flex-col justify-between gap-10 bg-muted/50 p-6 md:flex sm:p-8">
         <div className="space-y-7">
           <div className="flex items-center gap-3">
             <Logo size={28} />
             <div>
               <p className="text-lg font-semibold tracking-tight">MIST</p>
-              <p className="text-sm text-muted-foreground">Music listening platform</p>
+              <p className="text-sm text-muted-foreground">Self-hosted music streaming</p>
             </div>
           </div>
 
           <div className="space-y-4">
             <h2 className="max-w-sm text-2xl font-semibold tracking-tight sm:text-3xl">
-              Listen seamless music.
+              Run your own music app.
             </h2>
             <p className="max-w-md text-sm leading-6 text-muted-foreground sm:text-base">
-              Listen to what you like with a focused player built around your taste.
+              Your music, your server, your rules. A self-hosted streaming platform built for quality listening.
             </p>
           </div>
         </div>
@@ -142,15 +142,15 @@ export function AuthCard({ mode }: AuthCardProps) {
         <div className="grid gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <Headphones className="size-4" />
-            <span>Seamless music listening.</span>
+            <span>Self-hosted, fully in your control.</span>
           </div>
           <div className="flex items-center gap-2">
             <Heart className="size-4" />
-            <span>Listen to what you like.</span>
+            <span>Your library, your way.</span>
           </div>
           <div className="flex items-center gap-2">
             <Sparkles className="size-4" />
-            <span>Recommendations shaped by embeddings.</span>
+            <span>Smart recommendations, no third-party.</span>
           </div>
         </div>
       </aside>

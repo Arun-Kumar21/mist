@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Image, LayoutDashboard, ListMusic, LogOut, Upload } from "lucide-react"
+import { Image, LayoutDashboard, ListMusic, LogOut, Menu, PanelLeftClose, Upload } from "lucide-react"
 
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { Logo } from "@/components/logo"
@@ -21,6 +21,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter()
   const pathname = usePathname()
   const [mounted, setMounted] = React.useState(false)
+  const [sidebarOpen, setSidebarOpen] = React.useState(true)
 
   React.useEffect(() => {
     setMounted(true)
@@ -44,15 +45,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="flex min-h-svh bg-background">
       {/* Sidebar */}
-      <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-zinc-50 dark:bg-zinc-900">
-        {/* Logo */}
-        <div className="flex items-center gap-2 border-b border-border px-4 py-4">
-          <Logo size={16} />
-          <span className="text-sm font-semibold tracking-[0.18em]">MIST</span>
-          <span className="ml-auto rounded border border-border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            Admin
-          </span>
-        </div>
+      {sidebarOpen && (
+        <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-zinc-50 dark:bg-zinc-900">
+          {/* Logo */}
+          <div className="flex items-center gap-2 border-b border-border px-4 py-4">
+            <Logo size={16} />
+            <span className="text-sm font-semibold tracking-[0.18em]">MIST</span>
+            <span className="ml-auto rounded border border-border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Admin
+            </span>
+            <button
+              type="button"
+              aria-label="Close sidebar"
+              onClick={() => setSidebarOpen(false)}
+              className="ml-1 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </button>
+          </div>
 
         {/* Nav */}
         <nav className="flex flex-1 flex-col gap-0.5 p-3">
@@ -77,26 +87,39 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-border p-3 space-y-1">
-          <Link
-            href="/"
-            className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            ← Back to app
-          </Link>
-          <button
-            type="button"
-            onClick={() => { clearSession(); router.push("/login") }}
-            className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-          >
-            <LogOut className="h-4 w-4 shrink-0" />
-            Logout
-          </button>
-        </div>
-      </aside>
+          <div className="border-t border-border p-3 space-y-1">
+            <Link
+              href="/"
+              className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              ← Back to app
+            </Link>
+            <button
+              type="button"
+              onClick={() => { clearSession(); router.push("/login") }}
+              className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+            >
+              <LogOut className="h-4 w-4 shrink-0" />
+              Logout
+            </button>
+          </div>
+        </aside>
+      )}
 
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
+        {!sidebarOpen && (
+          <div className="flex items-center border-b border-border px-4 py-3">
+            <button
+              type="button"
+              aria-label="Open sidebar"
+              onClick={() => setSidebarOpen(true)}
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          </div>
+        )}
         <main className="flex-1 overflow-y-auto p-6 lg:p-8">
           {children}
         </main>
