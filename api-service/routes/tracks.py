@@ -18,6 +18,14 @@ from services.s3_service import (
 )
 from services.listening_service import ListeningService
 from middleware import require_admin
+from services.cache_service import (
+    get_cached_track_list,
+    get_cache_track,
+    set_cached_track_list,
+    set_cached_track,
+    invalidate_track_list_cache,
+    invalidate_track_cache
+)
 
 logger = logging.getLogger(__name__)
 
@@ -59,11 +67,19 @@ async def get_tracks(
 ):
     actual_offset = skip if skip > 0 else offset
     try:
+        cached_tracks = get_cached_track_list(limit, actual_offset, genre)
+        if cached_tracks is not None:
+            return {"success": True, "count": len(cached_tracks), "tracks": cached_tracks, "cached": True}
+
         if genre:
             tracks = TrackRepository.filter_by_genre(genre, limit, actual_offset)
         else:
             tracks = TrackRepository.get_all(limit, actual_offset)
-        return {"success": True, "count": len(tracks), "tracks": [_serialize_track(t) for t in tracks]}
+
+        serialized_tracks = [_serialize_track(t) for t in tracks]
+        set_cached_track_list(serialized_tracks, limit, actual_offset, genre)
+
+        return {"success": True, "count": len(tracks), "tracks": serialized_tracks}
     except Exception as e:
         logger.error(f"Error fetching tracks: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -95,9 +111,14 @@ async def get_popular_tracks(limit: int = Query(default=10, ge=1, le=50)):
 @router.get("/{track_id}")
 async def get_track_by_id(track_id: int):
     try:
+        cached_track = get_cache_track(track_id)
+        if cached_track:
+            return {"success": True, "track": cached_track, "cached": True}
         track = TrackRepository.get_by_id(track_id)
         if not track:
             raise HTTPException(status_code=404, detail="Track not found")
+
+        set_cached_track(_serialize_track(track))
         return {"success": True, "track": _serialize_track(track)}
     except HTTPException:
         raise
@@ -130,7 +151,6 @@ async def get_stream_info(track_id: int, request: Request):
         if not track.cdn_url:
             raise HTTPException(status_code=404, detail="Stream not available")
 
-        # Always compute stream URL to avoid stale persisted URLs with wrong region/host.
         stream_url = generate_hls_stream_url(track_id)
         return {
             "success": True,
@@ -189,6 +209,8 @@ async def update_track(track_id: int, req: UpdateTrackRequest, request: Request)
         if not update_data:
             raise HTTPException(status_code=400, detail="No fields to update")
         TrackRepository.update(track_id, update_data)
+        invalidate_track_list_cache()
+        invalidate_track_cache()
         updated = TrackRepository.get_by_id(track_id)
         return {"success": True, "track": _serialize_track(updated) if updated else None}
     except HTTPException:
@@ -215,6 +237,7 @@ async def delete_track(track_id: int, request: Request):
             except Exception as s3_error:
                 logger.error(f"Error deleting track cover image: {s3_error}")
         TrackRepository.delete(track_id)
+        invalidate_track_list_cache()
         return {"success": True, "message": f"Track {track_id} deleted"}
     except HTTPException:
         raise
@@ -255,6 +278,7 @@ async def upload_track_cover(track_id: int, request: Request, image: UploadFile 
                 logger.warning(f"Could not delete old track cover image {old_key}: {e}")
 
         updated = TrackRepository.get_by_id(track_id)
+        invalidate_track_list_cache()
         return {"success": True, "track": _serialize_track(updated) if updated else None}
     except HTTPException:
         raise

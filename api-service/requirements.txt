@@ -4,3 +4,4 @@ slowapi
 python-multipart
 python-dotenv
 boto3
+redis

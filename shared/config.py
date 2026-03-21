@@ -27,6 +27,11 @@ class Settings:
 
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
+    REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+    REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+    REDIS_DB = int(os.getenv("REDIS_DB", 0))
+    REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
+
     SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
 
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO" if IS_PRODUCTION else "DEBUG")
