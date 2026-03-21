@@ -1,10 +1,19 @@
 import json
 import logging
 from typing import Optional, Any
+import redis
 
-from main import redis_client
+from shared.config import settings
 
 logger = logging.getLogger(__name__)
+
+redis_client = redis.Redis(
+    host=settings.REDIS_HOST,
+    port=settings.REDIS_PORT,
+    db=settings.REDIS_DB,
+    password=settings.REDIS_PASSWORD,
+    decode_responses=True
+)
 
 TTL_LIST = 300
 TTL_GENRE = 60

@@ -5,7 +5,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-import redis
 
 from shared.config import settings
 from shared.db.database import create_tables
@@ -30,14 +29,6 @@ for noisy_logger in ("boto3", "botocore", "s3transfer", "urllib3"):
 logger = logging.getLogger(__name__)
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
-
-redis_client = redis.Redis(
-        host=settings.REDIS_HOST,
-        port=settings.PORT,
-        db=settings.REDIS_DB,
-        password=settings.REDIS_PASSWORD,
-        decode_responses=True
-        )
 
 app = FastAPI(title="MIST API", version="1.0.0")
 

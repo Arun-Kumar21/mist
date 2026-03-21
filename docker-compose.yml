@@ -6,8 +6,9 @@ services:
       - "6379:6379"
     volumes:
       - redis-data:/data
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_password}
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_password}", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -25,10 +26,16 @@ services:
       - ./.env
     environment:
       - PORT=8000
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-redis_password}
     dns:
       - 8.8.8.8
       - 8.8.4.4
+    volumes:
+      - ./api-service:/app
+      - ./shared:/app/shared
     depends_on:
       redis:
         condition: service_healthy
@@ -46,7 +53,7 @@ services:
       - ./.env
     environment:
       - PORT=8000
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_password}@redis:6379/0
     depends_on:
       redis:
         condition: service_healthy
@@ -61,7 +68,8 @@ services:
     env_file:
       - ./.env
     environment:
-      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:-redis_password}@redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD:-redis_password}@redis:6379/0
       - API_BASE_URL=${API_BASE_URL:-http://localhost:8000}
       - HLS_KEY_BASE_URL=${HLS_KEY_BASE_URL:-http://localhost:8000}
     depends_on:

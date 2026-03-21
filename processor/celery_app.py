@@ -10,12 +10,13 @@ if sys.version_info >= (3, 13):
     if not hasattr(threading, '_register_atexit'):
         threading._register_atexit = lambda func: None
 
-REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+REDIS_URL = os.getenv('CELERY_BROKER_URL', os.getenv('REDIS_URL', 'redis://localhost:6379/0'))
+CELERY_BACKEND = os.getenv('CELERY_RESULT_BACKEND', os.getenv('REDIS_URL', 'redis://localhost:6379/0'))
 
 celery_app = Celery(
     'mist_audio_processor',
     broker=REDIS_URL,
-    backend=REDIS_URL,
+    backend=CELERY_BACKEND,
     include=['tasks.audio_processing'],
 )
 
